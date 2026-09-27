@@ -1,3 +1,6 @@
+from selenium.webdriver.chrome.options import Options
+from selenium import webdriver
+from bs4 import BeautifulSoup
 import subprocess
 import shutil
 import json
@@ -19,6 +22,7 @@ def ignoreChromeSingletons(directory: str, names: list[str]) -> list[str]:
     return {name for name in names if name.startswith("Singleton")}
 
 
+currentDirectory = os.path.dirname(os.path.abspath(__file__))
 src = os.path.expanduser("~/.config/google-chrome")
 dst = os.path.expanduser("~/.config/google-chrome-debug")
 
@@ -42,3 +46,65 @@ time.sleep(2)
 # Check that the browser has a remote debugging port open
 output = subprocess.check_output("curl http://127.0.0.1:9222/json/version", shell=True)
 json.loads(output.decode("utf-8"))
+
+# Connect to the browser using Selenium
+options = Options()
+options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
+driver = webdriver.Chrome(options=options)
+
+# Get the LinkedIn connections page
+driver.get("https://www.linkedin.com/mynetwork/invite-connect/connections/")
+time.sleep(2)
+soup = BeautifulSoup(driver.page_source, "html.parser")
+
+# The divs with the connections
+connectionsDivs = soup.find_all(
+    "div",
+    class_="_6da8b5ca fe7c6d71 _513a9988 beb3b923 _263bbd74 _0ee6cb0f _22c72fc5 b97d0da1 _4ef31d88 _956986e4 _1d6a4537",
+)
+
+directConnections = {}
+
+for div in connectionsDivs:
+    profileLink = next(
+        (
+            link
+            for link in div.find_all("a", href=True)
+            if "/in/" in link["href"] and link.find("p")
+        ),
+        None,
+    )
+    profileParagraphs = profileLink.find_all("p")
+
+    name = profileParagraphs[0].get_text(" ", strip=True)
+    currentJob = (
+        profileParagraphs[1].get_text(" ", strip=True)
+        if len(profileParagraphs) > 1
+        else ""
+    )
+    profileUrl = profileLink["href"]
+    image = div.find("img", src=True)
+    imageUrl = image["src"] if image else ""
+
+    # Get the last segment of the profile URL
+    profileId = profileUrl.split("/")[-2]
+
+    directConnections[profileId] = {
+        "name": name,
+        "profileUrl": profileUrl,
+        "imageUrl": imageUrl,
+        "currentJob": currentJob,
+    }
+
+
+# Sort the connections by name
+directConnections = dict(
+    sorted(directConnections.items(), key=lambda x: x[1]["name"].lower())
+)
+
+
+with open(
+    os.path.join(currentDirectory, "connections.json"), "w", encoding="utf-8"
+) as f:
+    json.dump(directConnections, f, indent=2, ensure_ascii=False)
+    f.write("\n")

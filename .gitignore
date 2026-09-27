@@ -1,2 +1,5 @@
 __pycache__
 .venv/
+
+# The files with the profiles
+connections.json
