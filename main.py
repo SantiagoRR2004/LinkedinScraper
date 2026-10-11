@@ -1,4 +1,5 @@
 from selenium.webdriver.chrome.options import Options
+from urllib.parse import parse_qs, urlparse
 from selenium import webdriver
 from bs4 import BeautifulSoup
 import subprocess
@@ -121,11 +122,21 @@ for div in connectionsDivs:
     imageUrl = image["src"] if image else ""
 
     # Get the last segment of the profile URL
-    profileId = profileUrl.split("/")[-2]
+    profileID = profileUrl.split("/")[-2]
 
-    directConnections[profileId] = {
+    # Find the internal identifier
+    messageLink = next(
+        (link for link in div.find_all("a", href=True) if "recipient=" in link["href"]),
+        None,
+    )
+    linkedinID = parse_qs(urlparse(messageLink["href"]).query).get("recipient", [None])[
+        0
+    ]
+
+    directConnections[profileID] = {
         "name": name,
         "profileUrl": profileUrl,
+        "linkedinID": linkedinID,
         "imageUrl": imageUrl,
         "currentJob": currentJob,
     }
