@@ -25,11 +25,19 @@ if __name__ == "__main__":
             + f'connectionOf=["{personData["linkedinID"]}"]'
         )
 
-        driver.get(url)
-        time.sleep(2 + random.random())
+        nConnections = 10
+        page = 1
 
-        soup = BeautifulSoup(driver.page_source, "html.parser")
+        while nConnections == 10:
 
-        linkedinHtml.extractLinkedinConnections(soup, filePath)
+            driver.get(url + f"&page={page}")
+            time.sleep(2 + random.random())
+
+            soup = BeautifulSoup(driver.page_source, "html.parser")
+
+            connections = linkedinHtml.extractLinkedinConnections(soup, filePath)
+
+            nConnections = len(connections)
+            page += 1
 
 pass

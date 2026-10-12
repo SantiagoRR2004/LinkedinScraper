@@ -42,6 +42,7 @@ def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict:
     if os.path.exists(filePath):
         with open(filePath, "r", encoding="utf-8") as f:
             connections = json.load(f)
+    foundConnections = []
 
     for div in connectionsDivs:
         profileLink = next(
@@ -84,13 +85,16 @@ def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict:
             "recipient", [None]
         )[0]
 
-        connections[profileID] = {
-            "name": name,
-            "profileUrl": profileUrl,
-            "linkedinID": linkedinID,
-            "imageUrl": imageUrl,
-            "currentJob": currentJob,
-        }
+        connections.setdefault(profileID, {}).update(
+            {
+                "name": name,
+                "profileUrl": profileUrl,
+                "linkedinID": linkedinID,
+                "imageUrl": imageUrl,
+                "currentJob": currentJob,
+            }
+        )
+        foundConnections.append(profileID)
 
     # Sort the connections by name
     connections = dict(sorted(connections.items(), key=lambda x: x[1]["name"].lower()))
@@ -99,4 +103,4 @@ def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict:
         json.dump(connections, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
-    return connections
+    return {k: v for k, v in connections.items() if k in foundConnections}
