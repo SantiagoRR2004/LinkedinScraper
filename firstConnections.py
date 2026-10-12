@@ -1,8 +1,7 @@
-from urllib.parse import parse_qs, urlparse
 from selenium import webdriver
 from bs4 import BeautifulSoup
+import linkedinHtml
 import random
-import json
 import time
 import os
 
@@ -53,71 +52,6 @@ def obtainDirectConnections(driver: webdriver.Chrome) -> dict:
         time.sleep(2 + random.random())
 
     soup = BeautifulSoup(driver.page_source, "html.parser")
-
-    # The divs with the connections
-    connectionsDivs = soup.find_all(
-        "div",
-        attrs={
-            "componentkey": lambda value: value and value.startswith("ConnectionCard_")
-        },
+    return linkedinHtml.extractLinkedinConnections(
+        soup, os.path.join(currentDirectory, "connections.json")
     )
-
-    directConnections = {}
-
-    for div in connectionsDivs:
-        profileLink = next(
-            (
-                link
-                for link in div.find_all("a", href=True)
-                if "/in/" in link["href"] and link.find("p")
-            ),
-            None,
-        )
-        profileParagraphs = profileLink.find_all("p")
-
-        name = profileParagraphs[0].get_text(" ", strip=True)
-        currentJob = (
-            profileParagraphs[1].get_text(" ", strip=True)
-            if len(profileParagraphs) > 1
-            else ""
-        )
-        profileUrl = profileLink["href"]
-        image = div.find("img", src=True)
-        imageUrl = image["src"] if image else ""
-
-        # Get the last segment of the profile URL
-        profileID = profileUrl.split("/")[-2]
-
-        # Find the internal identifier
-        messageLink = next(
-            (
-                link
-                for link in div.find_all("a", href=True)
-                if "recipient=" in link["href"]
-            ),
-            None,
-        )
-        linkedinID = parse_qs(urlparse(messageLink["href"]).query).get(
-            "recipient", [None]
-        )[0]
-
-        directConnections[profileID] = {
-            "name": name,
-            "profileUrl": profileUrl,
-            "linkedinID": linkedinID,
-            "imageUrl": imageUrl,
-            "currentJob": currentJob,
-        }
-
-    # Sort the connections by name
-    directConnections = dict(
-        sorted(directConnections.items(), key=lambda x: x[1]["name"].lower())
-    )
-
-    with open(
-        os.path.join(currentDirectory, "connections.json"), "w", encoding="utf-8"
-    ) as f:
-        json.dump(directConnections, f, indent=2, ensure_ascii=False)
-        f.write("\n")
-
-    return directConnections
