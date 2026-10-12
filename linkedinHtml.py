@@ -42,7 +42,6 @@ def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict:
     if os.path.exists(filePath):
         with open(filePath, "r", encoding="utf-8") as f:
             connections = json.load(f)
-            return connections
 
     for div in connectionsDivs:
         profileLink = next(
@@ -56,6 +55,10 @@ def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict:
         profileParagraphs = profileLink.find_all("p")
 
         name = profileParagraphs[0].get_text(" ", strip=True)
+        name = (
+            name.replace("• 1er", "").replace("• 2do", "").replace("• 3er", "").strip()
+        )
+
         currentJob = (
             profileParagraphs[1].get_text(" ", strip=True)
             if len(profileParagraphs) > 1
@@ -66,7 +69,7 @@ def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict:
         imageUrl = image["src"] if image else ""
 
         # Get the last segment of the profile URL
-        profileID = profileUrl.split("/")[-2]
+        profileID = urlparse(profileUrl).path.strip("/").split("/")[1]
 
         # Find the internal identifier
         messageLink = next(
