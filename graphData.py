@@ -18,13 +18,36 @@ if __name__ == "__main__":
         connections.keys(), type=("Linkedin", "User", "Known"), color="red"
     )
 
-    for person in connections.keys():
-        filePath = os.path.join(peopleDirectory, f"{person}.json")
-        with open(filePath, "r", encoding="utf-8") as f:
-            data: dict = json.load(f)
+    connectionNames = {}
 
-        for p in data.keys():
+    for person, personData in connections.items():
+
+        connectionNames[person] = personData["name"]
+        filePath = os.path.join(peopleDirectory, f"{person}.json")
+
+        with open(filePath, "r", encoding="utf-8") as f:
+            personConnections: dict = json.load(f)
+
+        for p, pData in personConnections.items():
             G.add_edge(person, p)
+            connectionNames[p] = pData["name"]
+
+    # Sort the names by value
+    connectionNames = dict(
+        sorted(connectionNames.items(), key=lambda item: item[1].lower())
+    )
+
+    if len(connectionNames.keys()) != len(set(connectionNames.values())):
+        duplicates = set(
+            name
+            for name in connectionNames.values()
+            if list(connectionNames.values()).count(name) > 1
+        )
+        for duplicate in duplicates:
+            print(duplicate)
+
+    assert len(connectionNames.keys()) == len(set(connectionNames.values()))
+    nx.relabel_nodes(G, connectionNames, copy=False)
 
     html = graph.createHTML(G)
 
