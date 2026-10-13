@@ -18,26 +18,29 @@ if __name__ == "__main__":
 
         filePath = os.path.join(peopleDirectory, f"{person}.json")
 
-        url = (
-            "https://www.linkedin.com/search/results/people/?"
-            + 'network=["F"]'
-            + "&"
-            + f'connectionOf=["{personData["linkedinID"]}"]'
-        )
+        for n in ["F", "S"]:
 
-        nConnections = 10
-        page = 1
+            url = (
+                "https://www.linkedin.com/search/results/people/?"
+                + f'network=["{n}"]'
+                + "&"
+                + f'connectionOf=["{personData["linkedinID"]}"]'
+            )
 
-        while nConnections == 10:
+            nConnections = 10
+            page = 1
 
-            driver.get(url + f"&page={page}")
-            time.sleep(2 + random.random())
+            while nConnections == 10:
 
-            soup = BeautifulSoup(driver.page_source, "html.parser")
+                driver.get(url + f"&page={page}")
+                time.sleep(2 + 2 * random.random())
 
-            connections = linkedinHtml.extractLinkedinConnections(soup, filePath)
+                soup = BeautifulSoup(driver.page_source, "html.parser")
 
-            nConnections = len(connections)
-            page += 1
+                connections = linkedinHtml.extractLinkedinConnections(soup, filePath)
+
+                nConnections = len(connections)
+                page += 1
+                time.sleep(2 + 2 * random.random())
 
 pass

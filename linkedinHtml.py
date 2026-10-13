@@ -28,13 +28,19 @@ def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict:
         connectionsDivs = [
             div
             for div in soup.find_all("div", attrs={"role": "listitem"})
-            if div.find(
-                "a",
-                href=lambda href: href and "/in/" in href,
-            )
-            and div.find(
-                "a",
-                href=lambda href: href and "recipient=" in href,
+            if div.find("a", href=lambda href: href and "/in/" in href)
+            and (
+                div.find(
+                    "a",
+                    href=lambda href: href and "recipient=" in href,
+                )
+                or div.find(
+                    "a",
+                    attrs={
+                        "componentkey": lambda value: value
+                        and value.startswith("ConnectButtonstate:")
+                    },
+                )
             )
         ]
 
@@ -56,9 +62,7 @@ def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict:
         profileParagraphs = profileLink.find_all("p")
 
         name = profileParagraphs[0].get_text(" ", strip=True)
-        name = (
-            name.replace("• 1er", "").replace("• 2do", "").replace("• 3er", "").strip()
-        )
+        name = name.replace("• 1er", "").replace("• 2º", "").strip()
 
         currentJob = (
             profileParagraphs[1].get_text(" ", strip=True)
@@ -81,9 +85,24 @@ def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict:
             ),
             None,
         )
-        linkedinID = parse_qs(urlparse(messageLink["href"]).query).get(
-            "recipient", [None]
-        )[0]
+
+        if messageLink:
+            linkedinID = parse_qs(urlparse(messageLink["href"]).query).get(
+                "recipient", [None]
+            )[0]
+
+        else:
+            searchResults = div.find(
+                attrs={
+                    "componentkey": lambda value: value
+                    and value.startswith("SearchResultsACoAA")
+                }
+            )
+            linkedinID = (
+                searchResults["componentkey"][len("SearchResults") :]
+                if searchResults
+                else None
+            )
 
         connections.setdefault(profileID, {}).update(
             {
