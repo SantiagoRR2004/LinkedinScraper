@@ -14,9 +14,7 @@ if __name__ == "__main__":
 
     G = nx.MultiDiGraph()
 
-    G.add_nodes_from(
-        connections.keys(), type=("Linkedin", "User", "Known"), color="red"
-    )
+    G.add_nodes_from(connections.keys(), type=("Linkedin", "Known"), color="red")
 
     connectionNames = {}
 
@@ -29,6 +27,10 @@ if __name__ == "__main__":
             personConnections: dict = json.load(f)
 
         for p, pData in personConnections.items():
+
+            if p not in G:
+                G.add_node(p, type=("Linkedin", "Unknown"))
+
             G.add_edge(person, p)
             connectionNames[p] = pData["name"]
 
@@ -49,7 +51,10 @@ if __name__ == "__main__":
     assert len(connectionNames.keys()) == len(set(connectionNames.values()))
     nx.relabel_nodes(G, connectionNames, copy=False)
 
-    html = graph.createHTML(G)
+    with open(os.path.join(currentDirectory, "LinkedinGraphComplete.html"), "w") as f:
+        f.write(graph.createHTML(G))
+
+    G = graph.removeUnconnectedNodes(G, "Known")
 
     with open(os.path.join(currentDirectory, "LinkedinGraph.html"), "w") as f:
-        f.write(html)
+        f.write(graph.createHTML(G))
