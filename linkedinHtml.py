@@ -1,15 +1,172 @@
 from urllib.parse import parse_qs, urlparse
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, element
 import json
 import re
 import os
 
 
-def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict:
+def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
+    """
+    Extract the profiles from the provided list of BeautifulSoup elements.
+
+    It also updates the file with all the profiles found so far.
+
+    This will always obtain:
+        - name
+        - profileUrl
+        - imageUrl
+        - currentJob
+
+    It can obtain the internal LinkedIn identifier if:
+        - mynetwork/invite-connect/connections/
+        - search/results/people/
+
+    Args:
+        - elements (list[element.Tag]): A list of BeautifulSoup elements containing the profile information.
+
+    Returns:
+        - dict[str, dict[str, str]]: A dictionary containing the extracted profiles.
+    """
+    currentDirectory = os.path.dirname(os.path.abspath(__file__))
+    completeProfilesFile = os.path.join(currentDirectory, "profiles.json")
+    foundProfiles = []
+
+    profiles = {}
+    if os.path.exists(completeProfilesFile):
+        with open(completeProfilesFile, "r", encoding="utf-8") as f:
+            profiles = json.load(f)
+
+    for e in elements:
+
+        links = [e] if e.name == "a" else []
+        links.extend(e.find_all("a", href=True))
+        profileLink = next(
+            (
+                link
+                for link in links
+                if link.get("href")
+                if "/in/" in link["href"] and link.find("p")
+            ),
+            None,
+        )
+        if profileLink is None:
+            continue
+
+        profileParagraphs = profileLink.find_all("p")
+
+        name = profileParagraphs[0].get_text(" ", strip=True)
+        if "siguen esta página" in name.lower():
+            continue
+
+        name = (
+            name.replace("• 1er", "").replace("• 2º", "").replace("· 3er+", "").strip()
+        )
+
+        currentJob = ""
+        for paragraph in profileParagraphs[1:]:
+            text = paragraph.get_text(" ", strip=True)
+            if not re.fullmatch(r"[•·]\s*\d+(?:er|º)", text):
+                currentJob = text
+                break
+
+        profileUrl = profileLink["href"]
+        image = e.find("img", src=True)
+        imageUrl = image["src"] if image else ""
+
+        # Get the last segment of the profile URL
+        pathParts = urlparse(profileUrl).path.strip("/").split("/")
+        if len(pathParts) != 2 or pathParts[0] != "in":
+            continue
+        profileID = pathParts[1]
+
+        # Find the internal identifier
+        messageLink = next(
+            (
+                link
+                for link in e.find_all("a", href=True)
+                if "recipient=" in link["href"]
+            ),
+            None,
+        )
+
+        foundProfiles.append(profileID)
+        profiles.setdefault(profileID, {}).update(
+            {
+                "name": name,
+                "profileUrl": profileUrl,
+                "imageUrl": imageUrl,
+                "currentJob": currentJob,
+            }
+        )
+
+        # Find optional internal LinkedIn identifier
+        if messageLink:
+            linkedinID = parse_qs(urlparse(messageLink["href"]).query).get(
+                "recipient", [None]
+            )[0]
+
+        else:
+            searchResults = e.find(
+                attrs={
+                    "componentkey": lambda value: value
+                    and value.startswith("SearchResultsACoAA")
+                }
+            )
+            linkedinID = (
+                searchResults["componentkey"][len("SearchResults") :]
+                if searchResults
+                else None
+            )
+
+        if linkedinID:
+            profiles[profileID]["linkedinID"] = linkedinID
+
+    # Sort by name
+    profiles = dict(sorted(profiles.items(), key=lambda x: x[1]["name"].lower()))
+
+    with open(completeProfilesFile, "w", encoding="utf-8") as f:
+        json.dump(profiles, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+
+    return {k: v for k, v in profiles.items() if k in foundProfiles}
+
+
+def extractRecommendedPeople(soup: BeautifulSoup) -> dict[str, dict]:
+    """
+    Extract the people shown in the profile page's recommendation section.
+
+    LinkedIn renders the profile card as an anchor containing several paragraphs
+    and also nests a second anchor around the name. The profile URL is therefore
+    used as the deduplication key.
+    """
+    sections = []
+    seenSections = set()
+
+    for heading in soup.find_all(["h2", "h3"]):
+        section = heading.find_parent("section")
+        if (
+            section
+            and id(section) not in seenSections
+            and re.search(
+                r"(m[aá]s perfiles para ti|gente que podr[ií]as conocer|"
+                r"personas que quiz[aá] puedas conocer|people you may know)",
+                heading.get_text(" ", strip=True),
+                re.IGNORECASE,
+            )
+        ):
+            sections.append(section)
+            seenSections.add(id(section))
+
+    profileLinks = [
+        link for section in sections for link in section.find_all("a", href=True)
+    ]
+
+    return extractProfiles(profileLinks)
+
+
+def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict[str, dict]:
     """
     Extract LinkedIn connections from the provided BeautifulSoup object and save them to a JSON file.
-
-    It also updates the files with all the profiles found so far.
 
     Args:
         - soup (BeautifulSoup): A BeautifulSoup object containing the HTML of the LinkedIn connections.
@@ -18,19 +175,10 @@ def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict:
     Returns:
         - dict: A dictionary containing the extracted connections.
     """
-    currentDirectory = os.path.dirname(os.path.abspath(__file__))
-    completeProfilesFile = os.path.join(currentDirectory, "profiles.json")
-
-    profiles = {}
-    if os.path.exists(completeProfilesFile):
-        with open(completeProfilesFile, "r", encoding="utf-8") as f:
-            profiles = json.load(f)
-
     connections = {}
     if os.path.exists(filePath):
         with open(filePath, "r", encoding="utf-8") as f:
             connections = json.load(f)
-    foundConnections = []
 
     # The divs with the connections (mynetwork/invite-connect/connections/)
     connectionsDivs = soup.find_all(
@@ -61,88 +209,19 @@ def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict:
             )
         ]
 
-    for div in connectionsDivs:
+    # The profiles that were found
+    profiles = extractProfiles(connectionsDivs)
 
-        profileLink = next(
-            (
-                link
-                for link in div.find_all("a", href=True)
-                if "/in/" in link["href"] and link.find("p")
-            ),
-            None,
-        )
-        profileParagraphs = profileLink.find_all("p")
-
-        name = profileParagraphs[0].get_text(" ", strip=True)
-        name = name.replace("• 1er", "").replace("• 2º", "").strip()
-
-        currentJob = (
-            profileParagraphs[1].get_text(" ", strip=True)
-            if len(profileParagraphs) > 1
-            else ""
-        )
-        profileUrl = profileLink["href"]
-        image = div.find("img", src=True)
-        imageUrl = image["src"] if image else ""
-
-        # Get the last segment of the profile URL
-        profileID = urlparse(profileUrl).path.strip("/").split("/")[1]
-
-        # Find the internal identifier
-        messageLink = next(
-            (
-                link
-                for link in div.find_all("a", href=True)
-                if "recipient=" in link["href"]
-            ),
-            None,
-        )
-
-        if messageLink:
-            linkedinID = parse_qs(urlparse(messageLink["href"]).query).get(
-                "recipient", [None]
-            )[0]
-
-        else:
-            searchResults = div.find(
-                attrs={
-                    "componentkey": lambda value: value
-                    and value.startswith("SearchResultsACoAA")
-                }
-            )
-            linkedinID = (
-                searchResults["componentkey"][len("SearchResults") :]
-                if searchResults
-                else None
-            )
-
-        # Connections only have the name, but it shouldn't be used
-        connections[profileID] = name
-
-        profiles.setdefault(profileID, {}).update(
-            {
-                "name": name,
-                "profileUrl": profileUrl,
-                "linkedinID": linkedinID,
-                "imageUrl": imageUrl,
-                "currentJob": currentJob,
-            }
-        )
-        foundConnections.append(profileID)
+    connections = {k: v["name"] for k, v in profiles.items()}
 
     # Sort by name
-    profiles = dict(sorted(profiles.items(), key=lambda x: x[1]["name"].lower()))
     connections = dict(sorted(connections.items(), key=lambda x: x[1].lower()))
 
     with open(filePath, "w", encoding="utf-8") as f:
         json.dump(connections, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
-    with open(completeProfilesFile, "w", encoding="utf-8") as f:
-        json.dump(profiles, f, indent=2, ensure_ascii=False)
-        f.write("\n")
-
-    return {k: v for k, v in profiles.items() if k in foundConnections}
+    return profiles
 
 
 def scrapeMainProfile(person, soup: BeautifulSoup) -> dict:
@@ -156,14 +235,6 @@ def scrapeMainProfile(person, soup: BeautifulSoup) -> dict:
     Returns:
         - dict: A dictionary containing the scraped profile information.
     """
-    currentDirectory = os.path.dirname(os.path.abspath(__file__))
-    completeProfilesFile = os.path.join(currentDirectory, "profiles.json")
-
-    profiles = {}
-    if os.path.exists(completeProfilesFile):
-        with open(completeProfilesFile, "r", encoding="utf-8") as f:
-            profiles: dict[str, dict] = json.load(f)
-
     profileText = soup.get_text(" ", strip=True)
     contactsMatch = re.search(
         r"(?<!y\s)(\d[\d.,]*)\s+contactos?\b" r"(?!\s+m[aá]s\s+en\s+com[uú]n)",
@@ -184,6 +255,16 @@ def scrapeMainProfile(person, soup: BeautifulSoup) -> dict:
         )
     )
     newInfo = {"nContacts": nContacts, "hasCommonContacts": hasCommonContacts}
+
+    # Add extra profile information if available
+    extractRecommendedPeople(soup)
+
+    currentDirectory = os.path.dirname(os.path.abspath(__file__))
+    completeProfilesFile = os.path.join(currentDirectory, "profiles.json")
+
+    if os.path.exists(completeProfilesFile):
+        with open(completeProfilesFile, "r", encoding="utf-8") as f:
+            profiles: dict[str, dict] = json.load(f)
 
     profiles[person].update(newInfo)
     with open(completeProfilesFile, "w", encoding="utf-8") as f:
