@@ -1,6 +1,7 @@
 from urllib.parse import parse_qs, urlparse
 from bs4 import BeautifulSoup
 import json
+import re
 import os
 
 
@@ -142,3 +143,36 @@ def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict:
         f.write("\n")
 
     return {k: v for k, v in profiles.items() if k in foundConnections}
+
+
+def scrapeMainProfile(soup: BeautifulSoup) -> dict:
+    """
+    Scrape the main profile information from the provided BeautifulSoup object.
+
+    Args:
+        - soup (BeautifulSoup): A BeautifulSoup object containing the HTML of the LinkedIn profile.
+
+    Returns:
+        - dict: A dictionary containing the scraped profile information.
+    """
+    profileText = soup.get_text(" ", strip=True)
+    contactsMatch = re.search(
+        r"(?<!y\s)(\d[\d.,]*)\s+contactos?\b" r"(?!\s+m[aá]s\s+en\s+com[uú]n)",
+        profileText,
+        re.IGNORECASE,
+    )
+
+    nContacts = (
+        int(contactsMatch.group(1).replace(".", "").replace(",", ""))
+        if contactsMatch
+        else 0
+    )
+    hasCommonContacts = bool(
+        re.search(
+            r"\d[\d.,]*\s+contactos?\s+m[aá]s\s+en\s+com[uú]n",
+            profileText,
+            re.IGNORECASE,
+        )
+    )
+
+    return {"nContacts": nContacts, "hasCommonContacts": hasCommonContacts}

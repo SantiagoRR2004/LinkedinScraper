@@ -52,6 +52,16 @@ def obtainDirectConnections(driver: webdriver.Chrome) -> dict:
         time.sleep(2 + random.random())
 
     soup = BeautifulSoup(driver.page_source, "html.parser")
-    return linkedinHtml.extractLinkedinConnections(
+    connections = linkedinHtml.extractLinkedinConnections(
         soup, os.path.join(currentDirectory, "connections.json")
     )
+
+    for person, personData in connections.items():
+        driver.get(personData["profileUrl"])
+        time.sleep(2 + random.random())
+
+        soup = BeautifulSoup(driver.page_source, "html.parser")
+
+        personData.update(linkedinHtml.scrapeMainProfile(soup))
+
+    return connections
