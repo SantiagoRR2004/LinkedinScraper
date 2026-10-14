@@ -8,6 +8,8 @@ def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict:
     """
     Extract LinkedIn connections from the provided BeautifulSoup object and save them to a JSON file.
 
+    It also updates the files with all the profiles found so far.
+
     Args:
         - soup (BeautifulSoup): A BeautifulSoup object containing the HTML of the LinkedIn connections.
         - filePath (str): The path to the JSON file where the connections will be saved.
@@ -15,6 +17,20 @@ def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict:
     Returns:
         - dict: A dictionary containing the extracted connections.
     """
+    currentDirectory = os.path.dirname(os.path.abspath(__file__))
+    completeProfilesFile = os.path.join(currentDirectory, "profiles.json")
+
+    profiles = {}
+    if os.path.exists(completeProfilesFile):
+        with open(completeProfilesFile, "r", encoding="utf-8") as f:
+            profiles = json.load(f)
+
+    connections = {}
+    if os.path.exists(filePath):
+        with open(filePath, "r", encoding="utf-8") as f:
+            connections = json.load(f)
+    foundConnections = []
+
     # The divs with the connections (mynetwork/invite-connect/connections/)
     connectionsDivs = soup.find_all(
         "div",
@@ -44,13 +60,8 @@ def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict:
             )
         ]
 
-    connections = {}
-    if os.path.exists(filePath):
-        with open(filePath, "r", encoding="utf-8") as f:
-            connections = json.load(f)
-    foundConnections = []
-
     for div in connectionsDivs:
+
         profileLink = next(
             (
                 link
@@ -104,7 +115,10 @@ def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict:
                 else None
             )
 
-        connections.setdefault(profileID, {}).update(
+        # Connections only have the name, but it shouldn't be used
+        connections[profileID] = name
+
+        profiles.setdefault(profileID, {}).update(
             {
                 "name": name,
                 "profileUrl": profileUrl,
@@ -115,11 +129,16 @@ def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict:
         )
         foundConnections.append(profileID)
 
-    # Sort the connections by name
-    connections = dict(sorted(connections.items(), key=lambda x: x[1]["name"].lower()))
+    # Sort by name
+    profiles = dict(sorted(profiles.items(), key=lambda x: x[1]["name"].lower()))
+    connections = dict(sorted(connections.items(), key=lambda x: x[1].lower()))
 
     with open(filePath, "w", encoding="utf-8") as f:
         json.dump(connections, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
-    return {k: v for k, v in connections.items() if k in foundConnections}
+    with open(completeProfilesFile, "w", encoding="utf-8") as f:
+        json.dump(profiles, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+
+    return {k: v for k, v in profiles.items() if k in foundConnections}

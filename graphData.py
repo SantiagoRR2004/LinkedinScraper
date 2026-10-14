@@ -8,36 +8,33 @@ if __name__ == "__main__":
     peopleDirectory = os.path.join(currentDirectory, "connections")
 
     with open(
+        os.path.join(currentDirectory, "profiles.json"), "r", encoding="utf-8"
+    ) as f:
+        profiles = json.load(f)
+    with open(
         os.path.join(currentDirectory, "connections.json"), "r", encoding="utf-8"
     ) as f:
-        connections = json.load(f)
+        firstConnections = json.load(f)
 
     G = nx.MultiDiGraph()
 
-    G.add_nodes_from(connections.keys(), type=("Linkedin", "Known"), color="red")
+    G.add_nodes_from(firstConnections.keys(), type=("Linkedin", "Known"), color="red")
+    for person, personData in profiles.items():
+        if person not in firstConnections:
+            G.add_node(person, type=("Linkedin", "Unknown"))
 
-    connectionNames = {}
+    for person in firstConnections.keys():
 
-    for person, personData in connections.items():
-
-        connectionNames[person] = personData["name"]
         filePath = os.path.join(peopleDirectory, f"{person}.json")
 
         with open(filePath, "r", encoding="utf-8") as f:
             personConnections: dict = json.load(f)
 
         for p, pData in personConnections.items():
-
-            if p not in G:
-                G.add_node(p, type=("Linkedin", "Unknown"))
-
             G.add_edge(person, p)
-            connectionNames[p] = pData["name"]
 
-    # Sort the names by value
-    connectionNames = dict(
-        sorted(connectionNames.items(), key=lambda item: item[1].lower())
-    )
+    # Rename the nodes
+    connectionNames = {k: v["name"] for k, v in profiles.items()}
 
     if len(connectionNames.keys()) != len(set(connectionNames.values())):
         duplicates = set(
