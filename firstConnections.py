@@ -62,6 +62,6 @@ def obtainDirectConnections(driver: webdriver.Chrome) -> dict:
 
         soup = BeautifulSoup(driver.page_source, "html.parser")
 
-        personData.update(linkedinHtml.scrapeMainProfile(soup))
+        personData.update(linkedinHtml.scrapeMainProfile(person, soup))
 
     return connections

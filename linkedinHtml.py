@@ -145,16 +145,25 @@ def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict:
     return {k: v for k, v in profiles.items() if k in foundConnections}
 
 
-def scrapeMainProfile(soup: BeautifulSoup) -> dict:
+def scrapeMainProfile(person, soup: BeautifulSoup) -> dict:
     """
     Scrape the main profile information from the provided BeautifulSoup object.
 
     Args:
+        - person (str): The person's identifier in the dictionary of profiles.
         - soup (BeautifulSoup): A BeautifulSoup object containing the HTML of the LinkedIn profile.
 
     Returns:
         - dict: A dictionary containing the scraped profile information.
     """
+    currentDirectory = os.path.dirname(os.path.abspath(__file__))
+    completeProfilesFile = os.path.join(currentDirectory, "profiles.json")
+
+    profiles = {}
+    if os.path.exists(completeProfilesFile):
+        with open(completeProfilesFile, "r", encoding="utf-8") as f:
+            profiles: dict[str, dict] = json.load(f)
+
     profileText = soup.get_text(" ", strip=True)
     contactsMatch = re.search(
         r"(?<!y\s)(\d[\d.,]*)\s+contactos?\b" r"(?!\s+m[aá]s\s+en\s+com[uú]n)",
@@ -174,5 +183,11 @@ def scrapeMainProfile(soup: BeautifulSoup) -> dict:
             re.IGNORECASE,
         )
     )
+    newInfo = {"nContacts": nContacts, "hasCommonContacts": hasCommonContacts}
 
-    return {"nContacts": nContacts, "hasCommonContacts": hasCommonContacts}
+    profiles[person].update(newInfo)
+    with open(completeProfilesFile, "w", encoding="utf-8") as f:
+        json.dump(profiles, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+
+    return newInfo
