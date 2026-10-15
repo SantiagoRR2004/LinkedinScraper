@@ -212,7 +212,7 @@ def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict[str, 
     # The profiles that were found
     profiles = extractProfiles(connectionsDivs)
 
-    connections = {k: v["name"] for k, v in profiles.items()}
+    connections.update({k: v["name"] for k, v in profiles.items()})
 
     # Sort by name
     connections = dict(sorted(connections.items(), key=lambda x: x[1].lower()))
