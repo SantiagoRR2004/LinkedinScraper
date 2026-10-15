@@ -1,7 +1,15 @@
 from modules import graph
 import networkx as nx
+import unicodedata
 import json
 import os
+
+
+def normalizeName(name: str) -> str:
+    return (
+        unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode().lower()
+    )
+
 
 if __name__ == "__main__":
     currentDirectory = os.path.dirname(os.path.abspath(__file__))
@@ -33,6 +41,20 @@ if __name__ == "__main__":
         for p, pData in personConnections.items():
             G.add_edge(person, p)
 
+    # Obtain the Unknown nodes with their number of connections
+    unknownNodes = {
+        n: G.degree(n)
+        for n, d in G.nodes(data=True)
+        if "Unknown" in d["type"] and G.degree(n) > 0
+    }
+    unknownNodes = dict(
+        sorted(
+            unknownNodes.items(),
+            key=lambda x: (-x[1], normalizeName(profiles[x[0]]["name"])),
+            reverse=False,
+        )
+    )
+
     # Rename the nodes
     connectionNames = {k: v["name"] for k, v in profiles.items()}
 
@@ -55,3 +77,32 @@ if __name__ == "__main__":
 
     with open(os.path.join(currentDirectory, "LinkedinGraph.html"), "w") as f:
         f.write(graph.createHTML(G))
+
+    # Generate HTML
+    html = (
+        '<div style="text-align: center;">'
+        "<h1>Profiles that are not my connections</h1>"
+        '<table style="margin: 0 auto; border-spacing: 12px 0;">'
+        "<thead><tr>"
+        '<th style=""></th>'
+        '<th style=""></th>'
+        '<th style=""></th>'
+        "</tr></thead><tbody>"
+    )
+    for node, degree in unknownNodes.items():
+        profile = profiles[node]
+        image = (
+            f'<img src="{profile["imageUrl"]}" alt="{profile["name"]}" '
+            'width="100" height="100"> '
+        )
+        html += (
+            "<tr>"
+            f'<td style="padding: 0; text-align: right">{degree}</td>'
+            f'<td style="padding: 0;">{image}</td>'
+            f'<td style="padding: 0; text-align: left">{profile["name"]}<br>{profile["currentJob"]}</td>'
+            "</tr>"
+        )
+    html += "</tbody></table></div>"
+
+    with open(os.path.join(currentDirectory, "profiles.html"), "w") as f:
+        f.write(html)
