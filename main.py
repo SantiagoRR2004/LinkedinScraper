@@ -20,7 +20,10 @@ if __name__ == "__main__":
 
     reverseImage = {v["imageUrl"]: k for k, v in allProfiles.items()}
 
-    for person, personData in directConnections.items():
+    for person, personData in allProfiles.items():
+
+        if personData.get("linkedinID") is None:
+            continue
 
         filePath = os.path.join(peopleDirectory, f"{person}.json")
 
@@ -36,7 +39,10 @@ if __name__ == "__main__":
         ):
             typesOfConnections.append("F")
 
-        if personData.get("nContacts", 0) > len(previousConnections):
+        if (
+            personData.get("nContacts", 0) > len(previousConnections)
+            and person in directConnections
+        ):
             typesOfConnections.append("S")
 
         for n in typesOfConnections:
@@ -54,7 +60,7 @@ if __name__ == "__main__":
             while nConnections == 10:
 
                 driver.get(url + f"&page={page}")
-                time.sleep(2 + 10 * random.random())
+                time.sleep(2 + 60 * random.random())
 
                 soup = BeautifulSoup(driver.page_source, "html.parser")
 
@@ -107,6 +113,6 @@ if __name__ == "__main__":
 
                 nConnections = len(foundConnections)
                 page += 1
-                time.sleep(2 + 10 * random.random())
+                time.sleep(2 + 60 * random.random())
 
 pass

@@ -29,9 +29,14 @@ if __name__ == "__main__":
     G.add_nodes_from(firstConnections.keys(), type=("Linkedin", "Known"), color="red")
     for person, personData in profiles.items():
         if person not in firstConnections:
-            G.add_node(person, type=("Linkedin", "Unknown"))
+            G.add_node(person, type=("Linkedin", "Unknown"), color="blue")
 
-    for person in firstConnections.keys():
+    # Load the connection files
+    connectionFiles = [
+        f[: -len(".json")] for f in os.listdir(peopleDirectory) if f.endswith(".json")
+    ]
+
+    for person in connectionFiles:
 
         filePath = os.path.join(peopleDirectory, f"{person}.json")
 
@@ -45,7 +50,7 @@ if __name__ == "__main__":
     unknownNodes = {
         n: G.degree(n)
         for n, d in G.nodes(data=True)
-        if "Unknown" in d["type"] and G.degree(n) > 0
+        if "Unknown" in d["type"] and G.degree(n) > 1
     }
     unknownNodes = dict(
         sorted(
@@ -81,7 +86,7 @@ if __name__ == "__main__":
     # Generate HTML
     html = (
         '<div style="text-align: center;">'
-        "<h1>Profiles that are not my connections</h1>"
+        "<h1>Profiles</h1>"
         '<table style="margin: 0 auto; border-spacing: 12px 0;">'
         "<thead><tr>"
         '<th style=""></th>'
