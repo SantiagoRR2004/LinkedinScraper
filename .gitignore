@@ -7,3 +7,4 @@ connections.json
 connections/
 
 *.html
+!tests/**/*.html
