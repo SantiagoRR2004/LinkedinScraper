@@ -1,8 +1,24 @@
 import unicodedata
+import random
 import json
+import time
 import os
 
 STORE_PROFILES = True
+
+
+def waitRandomTime(randomSeconds: float = 60) -> None:
+    """
+    Wait for a random amount of time between 2 and 2 + randomSeconds seconds.
+
+    Args:
+        - randomSeconds (float): The maximum number of seconds to wait. Default is 60.
+
+    Returns:
+        - None
+    """
+    timeToWait = 2 + randomSeconds * random.random()
+    time.sleep(timeToWait)
 
 
 def normalizeName(name: str) -> str:

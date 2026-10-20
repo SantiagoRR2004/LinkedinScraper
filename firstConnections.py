@@ -1,8 +1,7 @@
 from selenium import webdriver
 from bs4 import BeautifulSoup
 import linkedinHtml
-import random
-import time
+import fileUtils
 
 
 def obtainDirectConnections(driver: webdriver.Chrome) -> dict[str:dict]:
@@ -17,7 +16,7 @@ def obtainDirectConnections(driver: webdriver.Chrome) -> dict[str:dict]:
     """
     # Get the LinkedIn connections page
     driver.get("https://www.linkedin.com/mynetwork/invite-connect/connections/")
-    time.sleep(2 + random.random())
+    fileUtils.waitRandomTime(1)
 
     # Scroll the container that actually owns the connections list
     scrollScript = """
@@ -46,18 +45,18 @@ def obtainDirectConnections(driver: webdriver.Chrome) -> dict[str:dict]:
     while lastHeight != newHeight:
         lastHeight = newHeight
         newHeight = driver.execute_script(scrollScript)["height"]
-        time.sleep(2 + random.random())
+        fileUtils.waitRandomTime(1)
 
     soup = BeautifulSoup(driver.page_source, "html.parser")
     connections = linkedinHtml.extractLinkedinConnections(soup, person=None)
 
     for person, personData in connections.items():
         driver.get(personData["profileUrl"])
-        time.sleep(2 + 10 * random.random())
+        fileUtils.waitRandomTime()
 
         soup = BeautifulSoup(driver.page_source, "html.parser")
 
         personData.update(linkedinHtml.scrapeMainProfile(person, soup))
-        time.sleep(2 + 10 * random.random())
+        fileUtils.waitRandomTime()
 
     return connections

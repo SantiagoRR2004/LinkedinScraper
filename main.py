@@ -49,7 +49,7 @@ if __name__ == "__main__":
             while nConnections == 10:
 
                 driver.get(url + f"&page={page}")
-                time.sleep(2 + 60 * random.random())
+                fileUtils.waitRandomTime()
 
                 soup = BeautifulSoup(driver.page_source, "html.parser")
 
@@ -90,6 +90,6 @@ if __name__ == "__main__":
 
                 nConnections = len(foundConnections)
                 page += 1
-                time.sleep(2 + 60 * random.random())
+                fileUtils.waitRandomTime()
 
 pass
