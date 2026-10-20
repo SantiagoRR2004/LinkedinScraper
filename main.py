@@ -2,21 +2,15 @@ from bs4 import BeautifulSoup
 import firstConnections
 import linkedinHtml
 import driverUtils
+import fileUtils
 import random
-import json
 import time
-import os
 
 if __name__ == "__main__":
     driver = driverUtils.createDriver()
     directConnections = firstConnections.obtainDirectConnections(driver)
 
-    currentDirectory = os.path.dirname(os.path.abspath(__file__))
-    peopleDirectory = os.path.join(currentDirectory, "connections")
-    os.makedirs(peopleDirectory, exist_ok=True)
-
-    with open(os.path.join(currentDirectory, "profiles.json"), "r") as f:
-        allProfiles = json.load(f)
+    allProfiles = fileUtils.getProfiles()
 
     reverseImage = {v["imageUrl"]: k for k, v in allProfiles.items()}
 
@@ -25,12 +19,7 @@ if __name__ == "__main__":
         if personData.get("linkedinID") is None:
             continue
 
-        filePath = os.path.join(peopleDirectory, f"{person}.json")
-
-        previousConnections = {}
-        if os.path.exists(filePath):
-            with open(filePath, "r") as f:
-                previousConnections = json.load(f)
+        previousConnections = fileUtils.getSecondConnections(person)
 
         typesOfConnections = []
 
@@ -64,9 +53,7 @@ if __name__ == "__main__":
 
                 soup = BeautifulSoup(driver.page_source, "html.parser")
 
-                foundConnections = linkedinHtml.extractLinkedinConnections(
-                    soup, filePath
-                )
+                foundConnections = linkedinHtml.extractLinkedinConnections(soup, person)
 
                 # Only find extra connections with Second-degree
                 if n == "S":
@@ -93,23 +80,13 @@ if __name__ == "__main__":
                     foundConnections.update(extraConnections)
 
                     if extraConnections:
-                        with open(filePath, "r", encoding="utf-8") as f:
-                            previousConnections = json.load(f)
+                        previousConnections = fileUtils.getSecondConnections(person)
 
                         previousConnections.update(
                             {k: v["name"] for k, v in extraConnections.items()}
                         )
-                        previousConnections = dict(
-                            sorted(
-                                previousConnections.items(), key=lambda x: x[1].lower()
-                            )
-                        )
 
-                        with open(filePath, "w", encoding="utf-8") as f:
-                            json.dump(
-                                previousConnections, f, ensure_ascii=False, indent=2
-                            )
-                            f.write("\n")
+                        fileUtils.saveSecondConnections(person, previousConnections)
 
                 nConnections = len(foundConnections)
                 page += 1

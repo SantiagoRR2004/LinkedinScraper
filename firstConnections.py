@@ -3,7 +3,6 @@ from bs4 import BeautifulSoup
 import linkedinHtml
 import random
 import time
-import os
 
 
 def obtainDirectConnections(driver: webdriver.Chrome) -> dict[str:dict]:
@@ -16,8 +15,6 @@ def obtainDirectConnections(driver: webdriver.Chrome) -> dict[str:dict]:
     Returns:
         - dict: The direct connections
     """
-    currentDirectory = os.path.dirname(os.path.abspath(__file__))
-
     # Get the LinkedIn connections page
     driver.get("https://www.linkedin.com/mynetwork/invite-connect/connections/")
     time.sleep(2 + random.random())
@@ -52,9 +49,7 @@ def obtainDirectConnections(driver: webdriver.Chrome) -> dict[str:dict]:
         time.sleep(2 + random.random())
 
     soup = BeautifulSoup(driver.page_source, "html.parser")
-    connections = linkedinHtml.extractLinkedinConnections(
-        soup, os.path.join(currentDirectory, "connections.json")
-    )
+    connections = linkedinHtml.extractLinkedinConnections(soup, person=None)
 
     for person, personData in connections.items():
         driver.get(personData["profileUrl"])

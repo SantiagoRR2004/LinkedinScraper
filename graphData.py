@@ -1,28 +1,15 @@
 from modules import graph
 import networkx as nx
-import unicodedata
+import fileUtils
 import json
 import os
-
-
-def normalizeName(name: str) -> str:
-    return (
-        unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode().lower()
-    )
-
 
 if __name__ == "__main__":
     currentDirectory = os.path.dirname(os.path.abspath(__file__))
     peopleDirectory = os.path.join(currentDirectory, "connections")
 
-    with open(
-        os.path.join(currentDirectory, "profiles.json"), "r", encoding="utf-8"
-    ) as f:
-        profiles = json.load(f)
-    with open(
-        os.path.join(currentDirectory, "connections.json"), "r", encoding="utf-8"
-    ) as f:
-        firstConnections = json.load(f)
+    profiles = fileUtils.getProfiles()
+    firstConnections = fileUtils.getFirstConnections()
 
     G = nx.MultiDiGraph()
 
@@ -55,7 +42,7 @@ if __name__ == "__main__":
     unknownNodes = dict(
         sorted(
             unknownNodes.items(),
-            key=lambda x: (-x[1], normalizeName(profiles[x[0]]["name"])),
+            key=lambda x: (-x[1], fileUtils.normalizeName(profiles[x[0]]["name"])),
             reverse=False,
         )
     )

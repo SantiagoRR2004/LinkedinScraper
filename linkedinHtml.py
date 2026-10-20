@@ -1,8 +1,7 @@
 from urllib.parse import parse_qs, urlparse
 from bs4 import BeautifulSoup, element
-import json
+import fileUtils
 import re
-import os
 
 
 def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
@@ -27,14 +26,8 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
     Returns:
         - dict[str, dict[str, str]]: A dictionary containing the extracted profiles.
     """
-    currentDirectory = os.path.dirname(os.path.abspath(__file__))
-    completeProfilesFile = os.path.join(currentDirectory, "profiles.json")
     foundProfiles = []
-
-    profiles = {}
-    if os.path.exists(completeProfilesFile):
-        with open(completeProfilesFile, "r", encoding="utf-8") as f:
-            profiles = json.load(f)
+    profiles = fileUtils.getProfiles()
 
     for e in elements:
 
@@ -121,12 +114,7 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
         if linkedinID:
             profiles[profileID]["linkedinID"] = linkedinID
 
-    # Sort by name
-    profiles = dict(sorted(profiles.items(), key=lambda x: x[1]["name"].lower()))
-
-    with open(completeProfilesFile, "w", encoding="utf-8") as f:
-        json.dump(profiles, f, ensure_ascii=False, indent=2)
-        f.write("\n")
+    fileUtils.saveProfiles(profiles)
 
     return {k: v for k, v in profiles.items() if k in foundProfiles}
 
@@ -164,21 +152,23 @@ def extractRecommendedPeople(soup: BeautifulSoup) -> dict[str, dict]:
     return extractProfiles(profileLinks)
 
 
-def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict[str, dict]:
+def extractLinkedinConnections(
+    soup: BeautifulSoup, person: str = None
+) -> dict[str, dict]:
     """
     Extract LinkedIn connections from the provided BeautifulSoup object and save them to a JSON file.
 
     Args:
         - soup (BeautifulSoup): A BeautifulSoup object containing the HTML of the LinkedIn connections.
-        - filePath (str): The path to the JSON file where the connections will be saved.
+        - person (str): The person's identifier in the dictionary of profiles.
 
     Returns:
         - dict: A dictionary containing the extracted connections.
     """
-    connections = {}
-    if os.path.exists(filePath):
-        with open(filePath, "r", encoding="utf-8") as f:
-            connections = json.load(f)
+    if person is None:
+        connections = fileUtils.getFirstConnections()
+    else:
+        connections = fileUtils.getSecondConnections(person)
 
     # The divs with the connections (mynetwork/invite-connect/connections/)
     connectionsDivs = soup.find_all(
@@ -214,12 +204,10 @@ def extractLinkedinConnections(soup: BeautifulSoup, filePath: str) -> dict[str, 
 
     connections.update({k: v["name"] for k, v in profiles.items()})
 
-    # Sort by name
-    connections = dict(sorted(connections.items(), key=lambda x: x[1].lower()))
-
-    with open(filePath, "w", encoding="utf-8") as f:
-        json.dump(connections, f, indent=2, ensure_ascii=False)
-        f.write("\n")
+    if person is None:
+        fileUtils.saveFirstConnections(connections)
+    else:
+        fileUtils.saveSecondConnections(person, connections)
 
     return profiles
 
@@ -259,16 +247,8 @@ def scrapeMainProfile(person, soup: BeautifulSoup) -> dict:
     # Add extra profile information if available
     extractRecommendedPeople(soup)
 
-    currentDirectory = os.path.dirname(os.path.abspath(__file__))
-    completeProfilesFile = os.path.join(currentDirectory, "profiles.json")
-
-    if os.path.exists(completeProfilesFile):
-        with open(completeProfilesFile, "r", encoding="utf-8") as f:
-            profiles: dict[str, dict] = json.load(f)
-
+    profiles = fileUtils.getProfiles()
     profiles[person].update(newInfo)
-    with open(completeProfilesFile, "w", encoding="utf-8") as f:
-        json.dump(profiles, f, indent=2, ensure_ascii=False)
-        f.write("\n")
+    fileUtils.saveProfiles(profiles)
 
     return newInfo
