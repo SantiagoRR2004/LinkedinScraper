@@ -58,7 +58,7 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
         currentJob = ""
         for paragraph in profileParagraphs[1:]:
             text = paragraph.get_text(" ", strip=True)
-            if not re.fullmatch(r"[•·]\s*\d+(?:er|º)", text):
+            if not re.fullmatch(r"[•·]\s*\d+(?:er|º)\+?", text):
                 currentJob = text
                 break
 

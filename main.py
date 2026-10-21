@@ -3,8 +3,6 @@ import firstConnections
 import linkedinHtml
 import driverUtils
 import fileUtils
-import random
-import time
 
 if __name__ == "__main__":
     driver = driverUtils.createDriver()
