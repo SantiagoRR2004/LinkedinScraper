@@ -267,13 +267,13 @@ def extractLinkedinHiddenConnections(
         fileUtils.saveSecondConnections(person, previousConnections)
 
 
-def scrapeMainProfile(person, soup: BeautifulSoup) -> dict:
+def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
     """
     Scrape the main profile information from the provided BeautifulSoup object.
 
     Args:
-        - person (str): The person's identifier in the dictionary of profiles.
         - soup (BeautifulSoup): A BeautifulSoup object containing the HTML of the LinkedIn profile.
+        - person (str): The person's identifier in the dictionary of profiles.
 
     Returns:
         - dict: A dictionary containing the scraped profile information.
@@ -303,7 +303,12 @@ def scrapeMainProfile(person, soup: BeautifulSoup) -> dict:
     extractRecommendedPeople(soup)
 
     profiles = fileUtils.getProfiles()
-    profiles[person].update(newInfo)
+
+    if person is not None and person in profiles:
+        profiles[person].update(newInfo)
+    elif person is not None:
+        profiles[person] = newInfo
+
     fileUtils.saveProfiles(profiles)
 
     return newInfo
