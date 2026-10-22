@@ -137,7 +137,8 @@ def extractRecommendedPeople(soup: BeautifulSoup) -> dict[str, dict]:
             and id(section) not in seenSections
             and re.search(
                 r"(m[aá]s perfiles para ti|gente que podr[ií]as conocer|"
-                r"personas que quiz[aá] puedas conocer|people you may know)",
+                r"personas que quiz[aá] puedas conocer|people you may know|"
+                r"explorar perfiles premium|explore premium profiles)",
                 heading.get_text(" ", strip=True),
                 re.IGNORECASE,
             )
