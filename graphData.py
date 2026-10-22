@@ -83,17 +83,19 @@ if __name__ == "__main__":
     )
     for node, degree in unknownNodes.items():
         profile = profiles[node]
-        image = (
-            f'<img src="{profile["imageUrl"]}" alt="{profile["name"]}" '
-            'width="100" height="100"> '
-        )
+        image = f'<img src="{profile["imageUrl"]}" ' 'width="100" height="100"> '
         html += (
             "<tr>"
             f'<td style="padding: 0; text-align: right">{degree}</td>'
             f'<td style="padding: 0;">{image}</td>'
-            f'<td style="padding: 0; text-align: left">{profile["name"]}<br>{profile["currentJob"]}</td>'
-            "</tr>"
+            f'<td style="padding: 0; text-align: left">{profile["name"]}<br>{profile["currentJob"]}'
         )
+
+        if profile.get("location"):
+            html += f'<br>{profile["location"]}'
+
+        html += "</td></tr>"
+
     html += "</tbody></table></div>"
 
     with open(os.path.join(currentDirectory, "profiles.html"), "w") as f:

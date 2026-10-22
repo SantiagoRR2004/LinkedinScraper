@@ -12,13 +12,15 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
 
     This will always obtain:
         - name
-        - profileUrl
+        - profileUrl (can be empty)
         - imageUrl
         - currentJob
 
     It can obtain the internal LinkedIn identifier if:
         - mynetwork/invite-connect/connections/
         - search/results/people/
+
+    It can also obtain the location.
 
     Args:
         - elements (list[element.Tag]): A list of BeautifulSoup elements containing the profile information.
@@ -55,12 +57,13 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
             name.replace("• 1er", "").replace("• 2º", "").replace("· 3er+", "").strip()
         )
 
-        currentJob = ""
+        profileDetails = []
         for paragraph in profileParagraphs[1:]:
             text = paragraph.get_text(" ", strip=True)
             if not re.fullmatch(r"[•·]\s*\d+(?:er|º)\+?", text):
-                currentJob = text
-                break
+                profileDetails.append(text)
+
+        currentJob = profileDetails[0]
 
         profileUrl = profileLink["href"]
         image = e.find("img", src=True)
@@ -113,6 +116,11 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
 
         if linkedinID:
             profiles[profileID]["linkedinID"] = linkedinID
+
+        # Find the location if available
+        location = profileDetails[1] if len(profileDetails) > 1 else ""
+        if location:
+            profiles[profileID]["location"] = location
 
     fileUtils.saveProfiles(profiles)
 
