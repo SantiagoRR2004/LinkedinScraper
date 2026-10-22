@@ -212,6 +212,52 @@ def extractLinkedinConnections(
     return profiles
 
 
+def extractLinkedinHiddenConnections(
+    soup: BeautifulSoup, person: str = None
+) -> dict[str, dict]:
+    """
+    Extract LinkedIn connections from the provided BeautifulSoup object and save them to a JSON file.
+
+    Args:
+        - soup (BeautifulSoup): A BeautifulSoup object containing the HTML of the LinkedIn connections
+        - person (str): The person's identifier in the dictionary of profiles.
+
+    Returns:
+        - dict: A dictionary containing the extracted connections.
+    """
+    allProfiles = fileUtils.getProfiles()
+
+    foundConnections = fileUtils.getSecondConnections(person)
+    directConnections = fileUtils.getFirstConnections()
+
+    reverseImage = {v["imageUrl"]: k for k, v in allProfiles.items()}
+
+    # Find all the https://media.licdn.com/dms/image/v2/
+    extraConnections = {}
+    urls = soup.find_all(
+        "img",
+        src=lambda x: x and x.startswith("https://media.licdn.com/dms/image/v2/"),
+    )
+    for url in urls:
+        if url["src"] in reverseImage:
+            profileBaseUrl = reverseImage[url["src"]]
+            if (
+                profileBaseUrl not in foundConnections
+                and profileBaseUrl not in directConnections
+                and profileBaseUrl != person
+            ):
+                extraConnections[profileBaseUrl] = allProfiles[profileBaseUrl]
+
+    foundConnections.update(extraConnections)
+
+    if extraConnections:
+        previousConnections = fileUtils.getSecondConnections(person)
+
+        previousConnections.update({k: v["name"] for k, v in extraConnections.items()})
+
+        fileUtils.saveSecondConnections(person, previousConnections)
+
+
 def scrapeMainProfile(person, soup: BeautifulSoup) -> dict:
     """
     Scrape the main profile information from the provided BeautifulSoup object.
