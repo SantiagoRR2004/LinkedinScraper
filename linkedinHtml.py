@@ -271,6 +271,15 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
     """
     Scrape the main profile information from the provided BeautifulSoup object.
 
+    It will add:
+        - nContacts
+        - hasCommonContacts
+        - name
+        - profileUrl
+        - imageUrl
+        - currentJob
+        - location
+
     Args:
         - soup (BeautifulSoup): A BeautifulSoup object containing the HTML of the LinkedIn profile.
         - person (str): The person's identifier in the dictionary of profiles.
@@ -278,6 +287,8 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
     Returns:
         - dict: A dictionary containing the scraped profile information.
     """
+    newInfo = {}
+
     profileText = soup.get_text(" ", strip=True)
     contactsMatch = re.search(
         r"(?<!y\s)(\d[\d.,]*)\s+contactos?\b" r"(?!\s+m[aá]s\s+en\s+com[uú]n)",
@@ -285,11 +296,15 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
         re.IGNORECASE,
     )
 
+    # Total number of contacts
     nContacts = (
         int(contactsMatch.group(1).replace(".", "").replace(",", ""))
         if contactsMatch
         else 0
     )
+    newInfo["nContacts"] = nContacts
+
+    # Check if the profile has common contacts
     hasCommonContacts = bool(
         re.search(
             r"\d[\d.,]*\s+contactos?\s+m[aá]s\s+en\s+com[uú]n",
@@ -297,7 +312,69 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
             re.IGNORECASE,
         )
     )
-    newInfo = {"nContacts": nContacts, "hasCommonContacts": hasCommonContacts}
+    newInfo["hasCommonContacts"] = hasCommonContacts
+
+    profileLink = next(
+        (
+            link
+            for link in soup.find_all("a", href=True)
+            if "/in/" in link["href"] and link.find("p")
+        ),
+        None,
+    )
+
+    profileParagraphs = profileLink.find_all("p")
+
+    # Extract the name, profile URL, and image URL
+    newInfo["name"] = profileParagraphs[0].get_text(" ", strip=True)
+    newInfo["profileUrl"] = profileLink["href"]
+    newInfo["imageUrl"] = (
+        profileLink.find("img", src=True).get("src", "")
+        if profileLink.find("img", src=True)
+        else ""
+    )
+
+    # Extract the current job
+    newInfo["currentJob"] = profileParagraphs[1].get_text(" ", strip=True)
+
+    # Extract the location
+    contactLink = soup.find(
+        "a",
+        href=lambda href: href and "overlay/contact-info" in href,
+    )
+    contactContainer = contactLink.parent.parent
+    location = contactContainer.find("p")
+    newInfo["location"] = location.get_text(" ", strip=True)
+
+    # Extract the internal LinkedIn identifier
+    recipientLink = soup.find(
+        "a",
+        href=lambda href: href and "recipient=" in href,
+    )
+
+    linkedinID = (
+        parse_qs(urlparse(recipientLink["href"]).query).get("recipient", [None])[0]
+        if recipientLink
+        else None
+    )
+
+    componentKey = soup.find(
+        attrs={"componentkey": re.compile(r"ACo[A-Za-z0-9_-]{36}")}
+    )
+    if componentKey:
+        match = re.search(
+            r"ACo[A-Za-z0-9_-]{36}",
+            componentKey["componentkey"],
+        )
+
+        if linkedinID is not None:
+            assert linkedinID == match.group(
+                0
+            ), f"LinkedIn ID mismatch: {linkedinID} != {match.group(0)}"
+
+        linkedinID = match.group(0)
+
+    newInfo["linkedinID"] = linkedinID
 
     # Add extra profile information if available
     extractRecommendedPeople(soup)
