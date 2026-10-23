@@ -87,10 +87,12 @@ def obtainInterpersonalConnections(driver: webdriver.Chrome) -> None:
 
         typesOfConnections = []
 
-        # Need to have common contacts
-        if personData.get("hasCommonContacts") and not any(
+        nPreviousCommonContacts = len(
             p for p in previousConnections if p in directConnections
-        ):
+        )
+
+        # Not found all the common connections yet
+        if personData.get("nCommonContacts", 0) > nPreviousCommonContacts:
             typesOfConnections.append("F")
 
         if (

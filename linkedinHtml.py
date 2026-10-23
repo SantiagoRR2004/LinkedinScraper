@@ -20,7 +20,9 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
         - mynetwork/invite-connect/connections/
         - search/results/people/
 
-    It can also obtain the location.
+    It can also obtain:
+        - location
+        - nCommonContacts
 
     Args:
         - elements (list[element.Tag]): A list of BeautifulSoup elements containing the profile information.
@@ -121,6 +123,40 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
         location = profileDetails[1] if len(profileDetails) > 1 else ""
         if location:
             profiles[profileID]["location"] = location
+
+        commonContactsContainer = next(
+            (
+                container
+                for container in e.find_all(["p", "span"])
+                if re.search(
+                    r"(?:\d[\d.,]*\s+contactos?\s+m[aá]s|contactos?)\s+en\s+com[uú]n",
+                    container.get_text(" ", strip=True),
+                    re.IGNORECASE,
+                )
+            ),
+            None,
+        )
+
+        if commonContactsContainer:
+            nCommonContacts = 0
+            commonContactsText = commonContactsContainer.get_text(" ", strip=True)
+            commonContactsMatch = re.search(
+                r"\b(\d[\d.,]*)\s+contactos?\s+m[aá]s\s+en\s+com[uú]n\b",
+                commonContactsText,
+                re.IGNORECASE,
+            )
+            commonContactProfiles = {
+                urlparse(link["href"]).path.strip("/")
+                for link in commonContactsContainer.find_all("a", href=True)
+                if urlparse(link["href"]).path.strip("/").startswith("in/")
+            }
+            nCommonContacts = len(commonContactProfiles)
+            if commonContactsMatch:
+                nCommonContacts += int(
+                    commonContactsMatch.group(1).replace(".", "").replace(",", "")
+                )
+
+            profiles[profileID]["nCommonContacts"] = nCommonContacts
 
     fileUtils.saveProfiles(profiles)
 
@@ -272,13 +308,13 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
     Scrape the main profile information from the provided BeautifulSoup object.
 
     It will add:
-        - nContacts
-        - hasCommonContacts
         - name
         - profileUrl
         - imageUrl
         - currentJob
         - location
+        - nContacts
+        - nCommonContacts
 
     Args:
         - soup (BeautifulSoup): A BeautifulSoup object containing the HTML of the LinkedIn profile.
@@ -288,31 +324,6 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
         - dict: A dictionary containing the scraped profile information.
     """
     newInfo = {}
-
-    profileText = soup.get_text(" ", strip=True)
-    contactsMatch = re.search(
-        r"(?<!y\s)(\d[\d.,]*)\s+contactos?\b" r"(?!\s+m[aá]s\s+en\s+com[uú]n)",
-        profileText,
-        re.IGNORECASE,
-    )
-
-    # Total number of contacts
-    nContacts = (
-        int(contactsMatch.group(1).replace(".", "").replace(",", ""))
-        if contactsMatch
-        else 0
-    )
-    newInfo["nContacts"] = nContacts
-
-    # Check if the profile has common contacts
-    hasCommonContacts = bool(
-        re.search(
-            r"\d[\d.,]*\s+contactos?\s+m[aá]s\s+en\s+com[uú]n",
-            profileText,
-            re.IGNORECASE,
-        )
-    )
-    newInfo["hasCommonContacts"] = hasCommonContacts
 
     profileLink = next(
         (
@@ -375,6 +386,52 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
         linkedinID = match.group(0)
 
     newInfo["linkedinID"] = linkedinID
+
+    profileText = soup.get_text(" ", strip=True)
+    contactsMatch = re.search(
+        r"(?<!y\s)(\d[\d.,]*)\s+contactos?\b" r"(?!\s+m[aá]s\s+en\s+com[uú]n)",
+        profileText,
+        re.IGNORECASE,
+    )
+
+    # Total number of contacts
+    nContacts = (
+        int(contactsMatch.group(1).replace(".", "").replace(",", ""))
+        if contactsMatch
+        else 0
+    )
+    newInfo["nContacts"] = nContacts
+
+    # The number of common contacts
+    commonContactsLink = next(
+        (
+            link
+            for link in soup.find_all("a")
+            if re.search(
+                r"(?:\d[\d.,]*\s+contactos?\s+m[aá]s|contactos?)\s+en\s+com[uú]n",
+                link.get_text(" ", strip=True),
+                re.IGNORECASE,
+            )
+        ),
+        None,
+    )
+
+    if commonContactsLink:
+        commonContactsText = commonContactsLink.get_text(" ", strip=True)
+        commonContactsMatch = re.search(
+            r"\b(\d[\d.,]*)\s+contactos?\s+m[aá]s\s+en\s+com[uú]n\b",
+            commonContactsText,
+            re.IGNORECASE,
+        )
+        nCommonContacts = len(commonContactsLink.find_all("strong"))
+        if commonContactsMatch:
+            nCommonContacts += int(
+                commonContactsMatch.group(1).replace(".", "").replace(",", "")
+            )
+        newInfo["nCommonContacts"] = nCommonContacts
+
+    else:
+        newInfo["nCommonContacts"] = 0
 
     # Add extra profile information if available
     extractRecommendedPeople(soup)
