@@ -4,6 +4,7 @@ import driverUtils
 if __name__ == "__main__":
     driver = driverUtils.createDriver()
     linkedinScraper.obtainDirectConnections(driver)
+    linkedinScraper.scrapeMainProfiles(driver)
     linkedinScraper.obtainInterpersonalConnections(driver)
     driver.quit()
 

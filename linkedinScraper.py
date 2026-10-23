@@ -4,7 +4,39 @@ import linkedinHtml
 import fileUtils
 
 
-def obtainDirectConnections(driver: webdriver.Chrome) -> dict[str:dict]:
+def scrapeMainProfiles(driver: webdriver.Chrome) -> dict[str, dict]:
+    """
+    Scrape the main profiles of the first connections of the
+    logged-in user on LinkedIn and save them to a JSON file.
+
+    Args:
+        - driver (webdriver.Chrome): A Selenium WebDriver instance for Chrome.
+
+    Returns:
+        - dict: A dictionary containing the scraped profile data.
+    """
+    profiles = fileUtils.getProfiles()
+    connections = fileUtils.getFirstConnections()
+
+    connectionsData = {}
+    for person in connections:
+
+        personData = profiles[person]
+
+        driver.get(personData["profileUrl"])
+        fileUtils.waitRandomTime()
+
+        soup = BeautifulSoup(driver.page_source, "html.parser")
+
+        personData.update(linkedinHtml.scrapeMainProfile(soup, person))
+        fileUtils.waitRandomTime()
+
+        connectionsData[person] = personData
+
+    return connectionsData
+
+
+def obtainDirectConnections(driver: webdriver.Chrome) -> dict[str, dict]:
     """
     Obtain the direct connections of the logged-in user on LinkedIn and save them to a JSON file.
 
@@ -49,15 +81,6 @@ def obtainDirectConnections(driver: webdriver.Chrome) -> dict[str:dict]:
 
     soup = BeautifulSoup(driver.page_source, "html.parser")
     connections = linkedinHtml.extractLinkedinConnections(soup, person=None)
-
-    for person, personData in connections.items():
-        driver.get(personData["profileUrl"])
-        fileUtils.waitRandomTime()
-
-        soup = BeautifulSoup(driver.page_source, "html.parser")
-
-        personData.update(linkedinHtml.scrapeMainProfile(soup, person))
-        fileUtils.waitRandomTime()
 
     return connections
 
