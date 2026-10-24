@@ -42,10 +42,24 @@ def createDriver() -> webdriver.Chrome:
         ignore=ignoreChromeSingletons,
     )
 
-    # Open the browser by terminal
+    logDirectory = os.path.join(os.path.dirname(__file__), "logs")
+    os.makedirs(logDirectory, exist_ok=True)
+
+    chromeLog = open(
+        os.path.join(logDirectory, "chrome.log"),
+        "a",
+        encoding="utf-8",
+        buffering=1,
+    )
+
     subprocess.Popen(
-        f"google-chrome --user-data-dir={dst} --remote-debugging-port=9222",
-        shell=True,
+        [
+            "google-chrome",
+            f"--user-data-dir={dst}",
+            "--remote-debugging-port=9222",
+        ],
+        stdout=chromeLog,
+        stderr=subprocess.STDOUT,
     )
 
     time.sleep(2)

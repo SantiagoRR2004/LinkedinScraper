@@ -1,5 +1,6 @@
 __pycache__
 .venv/
+logs/
 
 # The files with the profiles
 profiles.json
