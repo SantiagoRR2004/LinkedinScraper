@@ -68,7 +68,21 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
         currentJob = profileDetails[0]
 
         profileUrl = profileLink["href"]
-        image = e.find("img", src=True)
+        image = next(
+            (
+                link.find(
+                    "img",
+                    src=lambda src: src and "profile-displayphoto" in src,
+                )
+                for link in links
+                if link.get("href") == profileUrl
+                and link.find(
+                    "img",
+                    src=lambda src: src and "profile-displayphoto" in src,
+                )
+            ),
+            None,
+        )
         imageUrl = image["src"] if image else ""
 
         # Get the last segment of the profile URL
@@ -129,7 +143,8 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
                 container
                 for container in e.find_all(["p", "span"])
                 if re.search(
-                    r"(?:\d[\d.,]*\s+contactos?\s+m[aá]s|contactos?)\s+en\s+com[uú]n",
+                    r"(?:\d[\d.,]*\s+contactos?\s+m[aá]s"
+                    r"(?:\s+en\s+com[uú]n)?|contactos?\s+en\s+com[uú]n)",
                     container.get_text(" ", strip=True),
                     re.IGNORECASE,
                 )
@@ -141,7 +156,7 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
             nCommonContacts = 0
             commonContactsText = commonContactsContainer.get_text(" ", strip=True)
             commonContactsMatch = re.search(
-                r"\b(\d[\d.,]*)\s+contactos?\s+m[aá]s\s+en\s+com[uú]n\b",
+                r"\b(\d[\d.,]*)\s+contactos?\s+m[aá]s" r"(?:\s+en\s+com[uú]n)?\b",
                 commonContactsText,
                 re.IGNORECASE,
             )
@@ -151,10 +166,24 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
                 if urlparse(link["href"]).path.strip("/").startswith("in/")
             }
             nCommonContacts = len(commonContactProfiles)
+
             if commonContactsMatch:
                 nCommonContacts += int(
                     commonContactsMatch.group(1).replace(".", "").replace(",", "")
                 )
+
+                # Recommendation cards render the first mutual contact as plain text
+                if (
+                    not commonContactProfiles
+                    and commonContactsText[: commonContactsMatch.start()].strip()
+                ):
+                    nCommonContacts += 1
+            elif re.search(
+                r"\bcontactos?\s+en\s+com[uú]n\b",
+                commonContactsText,
+                re.IGNORECASE,
+            ):
+                nCommonContacts = 1
 
             profiles[profileID]["nCommonContacts"] = nCommonContacts
 
