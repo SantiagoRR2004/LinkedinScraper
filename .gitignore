@@ -4,6 +4,7 @@ __pycache__
 # The files with the profiles
 profiles.json
 connections.json
+invitations.json
 connections/
 
 *.html

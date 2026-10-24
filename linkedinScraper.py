@@ -113,9 +113,6 @@ def obtainGrowingNetwork(driver: webdriver.Chrome) -> dict[str, dict]:
 
     soup = BeautifulSoup(driver.page_source, "html.parser")
 
-    with open("debug.html", "w", encoding="utf-8") as f:
-        f.write(soup.prettify())
-
     profileDivs = [
         div
         for div in soup.find_all("div", attrs={"role": "listitem"})
@@ -123,6 +120,37 @@ def obtainGrowingNetwork(driver: webdriver.Chrome) -> dict[str, dict]:
     ]
 
     return linkedinHtml.extractProfiles(profileDivs)
+
+
+def obtainInvitations(driver: webdriver.Chrome) -> dict[str, dict]:
+    """
+    Obtain the invitations of the logged-in user on LinkedIn and save them to a JSON file.
+
+    Args:
+        - driver (webdriver.Chrome): A Selenium WebDriver instance for Chrome.
+
+    Returns:
+        - dict: The profiles of the invitations.
+    """
+    driver.get("https://www.linkedin.com/mynetwork/invitation-manager/received/")
+    scrollToBottom(driver)
+
+    soup = BeautifulSoup(driver.page_source, "html.parser")
+
+    profileDivs = soup.find_all(
+        "div",
+        attrs={
+            "componentkey": lambda value: value
+            and value.startswith("invitation_manager_row_")
+        },
+    )
+
+    invitations = linkedinHtml.extractProfiles(profileDivs)
+
+    storeInvitations = {k: v["name"] for k, v in invitations.items()}
+    fileUtils.saveInvitations(storeInvitations)
+
+    return invitations
 
 
 def obtainInterpersonalConnections(driver: webdriver.Chrome) -> None:

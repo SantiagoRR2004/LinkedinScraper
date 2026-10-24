@@ -193,3 +193,19 @@ def saveSecondConnections(person: str, connections: dict[str, str]) -> None:
     connectionsDirectory = connectionsDirectoryPath()
     filePath = os.path.join(connectionsDirectory, f"{person}.json")
     saveConnections(connections, filePath)
+
+
+def saveInvitations(connections: dict[str, str]) -> None:
+    """
+    Save the invitations to the invitations.json file.
+
+    Args:
+        - connections (dict[str, str]): A dictionary containing the invitations to save.
+
+    Returns:
+        - None
+    """
+    invitationsFile = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "invitations.json"
+    )
+    saveConnections(connections, invitationsFile)

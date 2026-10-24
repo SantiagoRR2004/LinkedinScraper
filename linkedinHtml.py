@@ -35,6 +35,16 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
 
     for e in elements:
 
+        isInvitation = bool(
+            e.get("componentkey", "").startswith("invitation_manager_row_")
+            or e.find(
+                attrs={
+                    "componentkey": lambda value: value
+                    and value.startswith("invitation_manager_row_")
+                }
+            )
+        )
+
         links = [e] if e.name == "a" else []
         links.extend(e.find_all("a", href=True))
         profileLink = next(
@@ -42,7 +52,8 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
                 link
                 for link in links
                 if link.get("href")
-                if "/in/" in link["href"] and link.find("p")
+                if "/in/" in link["href"]
+                and (link.find("p") or (link.find_parent("p") and isInvitation))
             ),
             None,
         )
@@ -51,19 +62,31 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
 
         profileParagraphs = profileLink.find_all("p")
 
-        name = profileParagraphs[0].get_text(" ", strip=True)
-        if "siguen esta página" in name.lower():
-            continue
+        if isInvitation:
+            name = profileLink.find("strong").get_text(" ", strip=True)
+            profileDetails = [
+                paragraph.get_text(" ", strip=True)
+                for paragraph in e.find_all("p")
+                if "quiere conectar" not in paragraph.get_text(" ", strip=True).lower()
+            ]
 
-        name = (
-            name.replace("• 1er", "").replace("• 2º", "").replace("· 3er+", "").strip()
-        )
+        else:
+            name = profileParagraphs[0].get_text(" ", strip=True)
+            if "siguen esta página" in name.lower():
+                continue
 
-        profileDetails = []
-        for paragraph in profileParagraphs[1:]:
-            text = paragraph.get_text(" ", strip=True)
-            if not re.fullmatch(r"[•·]\s*\d+(?:er|º)\+?", text):
-                profileDetails.append(text)
+            name = (
+                name.replace("• 1er", "")
+                .replace("• 2º", "")
+                .replace("· 3er+", "")
+                .strip()
+            )
+
+            profileDetails = []
+            for paragraph in profileParagraphs[1:]:
+                text = paragraph.get_text(" ", strip=True)
+                if not re.fullmatch(r"[•·]\s*\d+(?:er|º)\+?", text):
+                    profileDetails.append(text)
 
         currentJob = profileDetails[0]
 
@@ -134,7 +157,9 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
             profiles[profileID]["linkedinID"] = linkedinID
 
         # Find the location if available
-        location = profileDetails[1] if len(profileDetails) > 1 else ""
+        location = (
+            profileDetails[1] if not isInvitation and len(profileDetails) > 1 else ""
+        )
         if location:
             profiles[profileID]["location"] = location
 
