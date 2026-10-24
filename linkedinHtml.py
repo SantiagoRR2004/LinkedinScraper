@@ -189,7 +189,14 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
 
     fileUtils.saveProfiles(profiles)
 
-    return {k: v for k, v in profiles.items() if k in foundProfiles}
+    toret = {k: v for k, v in profiles.items() if k in foundProfiles}
+
+    # Sort by name
+    toret = dict(
+        sorted(toret.items(), key=lambda x: fileUtils.normalizeName(x[1]["name"]))
+    )
+
+    return toret
 
 
 def extractRecommendedPeople(soup: BeautifulSoup) -> dict[str, dict]:

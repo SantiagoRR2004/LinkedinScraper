@@ -85,6 +85,63 @@ def obtainDirectConnections(driver: webdriver.Chrome) -> dict[str, dict]:
     return connections
 
 
+def obtainGrowingNetwork(driver: webdriver.Chrome) -> dict[str, dict]:
+    """
+    Obtain the growing network of the logged-in user on LinkedIn and save them to a JSON file.
+
+    Args:
+        - driver (webdriver.Chrome): A Selenium WebDriver instance for Chrome.
+
+    Returns:
+        - dict: The growing network.
+    """
+    driver.get("https://www.linkedin.com/mynetwork/grow/")
+
+    fileUtils.waitRandomTime(1)
+
+    # Scroll the container that actually owns the connections list
+    scrollScript = """
+    const root = document.scrollingElement;
+    const candidates = [root, ...document.querySelectorAll('*')]
+        .filter((element, index, elements) => element && elements.indexOf(element) === index)
+        .filter(element => {
+            const style = getComputedStyle(element);
+            return element.scrollHeight > element.clientHeight &&
+                (element === root || style.overflowY === 'auto' || style.overflowY === 'scroll');
+        })
+        .sort((left, right) => right.scrollHeight - left.scrollHeight);
+    const target = candidates[0] || root;
+    target.scrollTo(0, target.scrollHeight);
+    return {
+        height: target.scrollHeight,
+        top: target.scrollTop,
+        tag: target.tagName,
+        className: target.className
+    };
+    """
+
+    lastHeight = -1
+    newHeight = 0
+
+    while lastHeight != newHeight:
+        lastHeight = newHeight
+        newHeight = driver.execute_script(scrollScript)["height"]
+        fileUtils.waitRandomTime(1)
+
+    soup = BeautifulSoup(driver.page_source, "html.parser")
+
+    with open("debug.html", "w", encoding="utf-8") as f:
+        f.write(soup.prettify())
+
+    profileDivs = [
+        div
+        for div in soup.find_all("div", attrs={"role": "listitem"})
+        if div.find("a", href=lambda href: href and "/in/" in href)
+    ]
+
+    return linkedinHtml.extractProfiles(profileDivs)
+
+
 def obtainInterpersonalConnections(driver: webdriver.Chrome) -> None:
     """
     Obtain the interpersonal connections of the logged-in user on LinkedIn and save them to the
