@@ -1,8 +1,58 @@
 from urllib.parse import parse_qs, urlparse
 from bs4 import BeautifulSoup, element
+from collections import Counter
 import fileUtils
 import time
 import re
+
+
+def reverseImageMapping() -> dict[str, str]:
+    """
+    Create a reverse mapping of image URLs to profile IDs from the stored profiles.
+
+    It also cleans up the profiles by removing expired image URLs and duplicates.
+
+    Args:
+        - None
+
+    Returns:
+        - dict[str, str]: A dictionary mapping image URLs to profile IDs.
+    """
+    allProfiles = fileUtils.getProfiles()
+
+    # Check that there are no duplicate image URLs
+    imageUrls = [v["imageUrl"] for v in allProfiles.values()]
+    counts = Counter(url for url in imageUrls if url)
+
+    for profile in allProfiles.values():
+        url = profile["imageUrl"]
+
+        if url == "":
+            continue
+
+        # Check the timestamp ?e=1794441600
+        query = parse_qs(urlparse(url).query)
+        timestamp = query.get("e", [None])[0]
+
+        # Delete if the timestamp is in the past
+        if int(timestamp) < int(time.time()):
+            print(f"{profile['name']} has an expired image URL")
+            profile["imageUrl"] = ""
+            continue
+
+        # Change image to "" for the duplicates
+        if counts[url] > 1:
+
+            print(f"{profile["name"]} has a duplicate image URL: {url}")
+            profile["imageUrl"] = ""
+
+    fileUtils.saveProfiles(allProfiles)
+
+    reverseImage = {
+        v["imageUrl"]: k for k, v in allProfiles.items() if v["imageUrl"] != ""
+    }
+
+    return reverseImage
 
 
 def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
@@ -339,7 +389,7 @@ def extractLinkedinHiddenConnections(
 
     directConnections = fileUtils.getFirstConnections()
 
-    reverseImage = {v["imageUrl"]: k for k, v in allProfiles.items()}
+    reverseImage = reverseImageMapping()
 
     # Find all the https://media.licdn.com/dms/image/v2/
     extraConnections = {}
