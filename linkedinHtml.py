@@ -96,13 +96,15 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
             (
                 link.find(
                     "img",
-                    src=lambda src: src and "profile-displayphoto" in src,
+                    src=lambda src: src
+                    and ("profile-displayphoto" in src or "profile-framedphoto" in src),
                 )
                 for link in links
                 if link.get("href") == profileUrl
                 and link.find(
                     "img",
-                    src=lambda src: src and "profile-displayphoto" in src,
+                    src=lambda src: src
+                    and ("profile-displayphoto" in src or "profile-framedphoto" in src),
                 )
             ),
             None,
