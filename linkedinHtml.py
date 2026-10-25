@@ -337,7 +337,6 @@ def extractLinkedinHiddenConnections(
     """
     allProfiles = fileUtils.getProfiles()
 
-    foundConnections = fileUtils.getSecondConnections(person)
     directConnections = fileUtils.getFirstConnections()
 
     reverseImage = {v["imageUrl"]: k for k, v in allProfiles.items()}
@@ -351,14 +350,8 @@ def extractLinkedinHiddenConnections(
     for url in urls:
         if url["src"] in reverseImage:
             profileBaseUrl = reverseImage[url["src"]]
-            if (
-                profileBaseUrl not in foundConnections
-                and profileBaseUrl not in directConnections
-                and profileBaseUrl != person
-            ):
+            if profileBaseUrl not in directConnections and profileBaseUrl != person:
                 extraConnections[profileBaseUrl] = allProfiles[profileBaseUrl]
-
-    foundConnections.update(extraConnections)
 
     if extraConnections:
         previousConnections = fileUtils.getSecondConnections(person)
@@ -368,6 +361,8 @@ def extractLinkedinHiddenConnections(
         fileUtils.saveSecondConnections(
             person, allProfiles[person]["name"], previousConnections
         )
+
+    return extraConnections
 
 
 def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:

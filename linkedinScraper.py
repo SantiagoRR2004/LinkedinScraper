@@ -271,8 +271,6 @@ def obtainInterpersonalSecond(driver: webdriver.Chrome) -> None:
         )
     )
 
-    reverseImage = {v["imageUrl"]: k for k, v in allProfiles.items()}
-
     for person, personData in tqdm.tqdm(
         validProfiles.items(), desc="Second-degree connections"
     ):
@@ -303,35 +301,11 @@ def obtainInterpersonalSecond(driver: webdriver.Chrome) -> None:
                 soup, person, name=personData["name"]
             )
 
-            # Find all the https://media.licdn.com/dms/image/v2/
-            extraConnections = {}
-            urls = soup.find_all(
-                "img",
-                src=lambda x: x
-                and x.startswith("https://media.licdn.com/dms/image/v2/"),
+            extraConnections = linkedinHtml.extractLinkedinHiddenConnections(
+                soup, person
             )
-            for url in urls:
-                if url["src"] in reverseImage:
-                    profileBaseUrl = reverseImage[url["src"]]
-                    if (
-                        profileBaseUrl not in foundConnections
-                        and profileBaseUrl not in directConnections
-                        and profileBaseUrl != person
-                    ):
-                        extraConnections[profileBaseUrl] = allProfiles[profileBaseUrl]
 
             foundConnections.update(extraConnections)
-
-            if extraConnections:
-                previousConnections = fileUtils.getSecondConnections(person)
-
-                previousConnections.update(
-                    {k: v["name"] for k, v in extraConnections.items()}
-                )
-
-                fileUtils.saveSecondConnections(
-                    person, personData["name"], previousConnections
-                )
 
             nConnections = len(foundConnections)
             page += 1
