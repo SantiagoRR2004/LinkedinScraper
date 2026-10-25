@@ -2,6 +2,9 @@ from selenium import webdriver
 from bs4 import BeautifulSoup
 import linkedinHtml
 import fileUtils
+import random
+import time
+import tqdm
 
 
 def scrollToBottom(driver: webdriver.Chrome) -> None:
@@ -59,9 +62,25 @@ def scrapeMainProfiles(driver: webdriver.Chrome) -> dict[str, dict]:
     """
     profiles = fileUtils.getProfiles()
     connections = fileUtils.getFirstConnections()
+    invitations = fileUtils.getInvitations()
 
     connectionsData = {}
-    for person in connections:
+    personToScrape = []
+
+    for person in set(connections.keys()).union(set(invitations.keys())):
+
+        if not profiles[person].get("timestamp"):
+            personToScrape.append(person)
+
+        else:
+            seconds = int(time.time()) - profiles[person]["timestamp"]
+
+            # Sample the number of random seconds from a million
+            if seconds > random.randint(0, 10**6):
+                personToScrape.append(person)
+
+    # Only scrape the profiles that need to be scraped
+    for person in tqdm.tqdm(personToScrape, desc="Scraping main profiles"):
 
         personData = profiles[person]
 
@@ -169,7 +188,9 @@ def obtainInterpersonalConnections(driver: webdriver.Chrome) -> None:
 
     reverseImage = {v["imageUrl"]: k for k, v in allProfiles.items()}
 
-    for person, personData in allProfiles.items():
+    for person, personData in tqdm.tqdm(
+        allProfiles.items(), desc="Interpersonal connections"
+    ):
 
         if personData.get("linkedinID") is None:
             continue
@@ -179,7 +200,7 @@ def obtainInterpersonalConnections(driver: webdriver.Chrome) -> None:
         typesOfConnections = []
 
         nPreviousCommonContacts = len(
-            p for p in previousConnections if p in directConnections
+            [p for p in previousConnections if p in directConnections]
         )
 
         # Not found all the common connections yet

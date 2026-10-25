@@ -1,6 +1,7 @@
 from urllib.parse import parse_qs, urlparse
 from bs4 import BeautifulSoup, element
 import fileUtils
+import time
 import re
 
 
@@ -377,6 +378,9 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
         - nContacts
         - nCommonContacts
 
+    It will also add the unix timestamp that should be used to
+    not scrape the profile all the time.
+
     Args:
         - soup (BeautifulSoup): A BeautifulSoup object containing the HTML of the LinkedIn profile.
         - person (str): The person's identifier in the dictionary of profiles.
@@ -493,6 +497,10 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
 
     else:
         newInfo["nCommonContacts"] = 0
+
+    # The timestamp
+    if fileUtils.STORE_PROFILES:
+        newInfo["timestamp"] = int(time.time())
 
     # Add extra profile information if available
     extractRecommendedPeople(soup)

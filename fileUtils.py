@@ -46,6 +46,11 @@ def firstConnectionsFilePath() -> str:
     return os.path.join(currentDirectory, "connections.json")
 
 
+def invitationsFilePath() -> str:
+    currentDirectory = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(currentDirectory, "invitations.json")
+
+
 def connectionsDirectoryPath() -> str:
     currentDirectory = os.path.dirname(os.path.abspath(__file__))
     connectionsDirectory = os.path.join(currentDirectory, "connections")
@@ -118,6 +123,20 @@ def getSecondConnections(person: str) -> dict[str, str]:
     connectionsDirectory = connectionsDirectoryPath()
     filePath = os.path.join(connectionsDirectory, f"{person}.json")
     return getConnections(filePath)
+
+
+def getInvitations() -> dict[str, str]:
+    """
+    Get the invitations from the invitations.json file.
+
+    Args:
+        - None
+
+    Returns:
+        - dict[str, str]: A dictionary containing the invitations.
+    """
+    invitationsFile = invitationsFilePath()
+    return getConnections(invitationsFile)
 
 
 def saveProfiles(profiles: dict[str, dict]) -> None:
@@ -205,7 +224,4 @@ def saveInvitations(connections: dict[str, str]) -> None:
     Returns:
         - None
     """
-    invitationsFile = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "invitations.json"
-    )
-    saveConnections(connections, invitationsFile)
+    saveConnections(connections, invitationsFilePath())
