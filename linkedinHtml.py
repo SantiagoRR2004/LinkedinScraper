@@ -448,11 +448,8 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
             componentKey["componentkey"],
         )
 
-        if linkedinID is not None:
-            assert linkedinID == match.group(
-                0
-            ), f"LinkedIn ID mismatch: {linkedinID} != {match.group(0)}"
-
+        # The page can contain recipient links for recommended contacts, so the
+        # profile card identifier is authoritative when it is available.
         linkedinID = match.group(0)
 
     newInfo["linkedinID"] = linkedinID

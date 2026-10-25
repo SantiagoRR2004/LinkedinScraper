@@ -59,6 +59,14 @@ if __name__ == "__main__":
         for duplicate in duplicates:
             print(duplicate)
 
+            # Fix by adding a number to the duplicate names
+            count = 1
+
+            for k, v in connectionNames.items():
+                if v == duplicate:
+                    connectionNames[k] = f"{v} ({count})"
+                    count += 1
+
     assert len(connectionNames.keys()) == len(set(connectionNames.values()))
     nx.relabel_nodes(G, connectionNames, copy=False)
 
