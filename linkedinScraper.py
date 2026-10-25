@@ -172,6 +172,172 @@ def obtainInvitations(driver: webdriver.Chrome) -> dict[str, dict]:
     return invitations
 
 
+def obtainInterpersonalFirst(driver: webdriver.Chrome) -> None:
+    """
+    Obtain the relationships to the first-degree connections
+    of the logged-in user on LinkedIn and save them to the JSON files.
+
+    Args:
+        - driver (webdriver.Chrome): A Selenium WebDriver instance for Chrome.
+
+    Returns:
+        - None
+    """
+    directConnections = fileUtils.getFirstConnections()
+    allProfiles = fileUtils.getProfiles()
+
+    validProfiles = {
+        k: v
+        for k, v in allProfiles.items()
+        if v.get("linkedinID") is not None and v.get("nCommonContacts", 0) > 0
+    }
+
+    # Sort by nCommonContacts in descending order
+    validProfiles = dict(
+        sorted(
+            validProfiles.items(),
+            key=lambda item: item[1]["nCommonContacts"],
+            reverse=True,
+        )
+    )
+
+    for person, personData in tqdm.tqdm(
+        validProfiles.items(), desc="First-degree connections"
+    ):
+
+        previousConnections = fileUtils.getSecondConnections(person)
+
+        nPreviousCommonContacts = len(
+            [p for p in previousConnections if p in directConnections]
+        )
+
+        # Found all the common connections
+        if personData.get("nCommonContacts", 0) <= nPreviousCommonContacts:
+            continue
+
+        url = (
+            "https://www.linkedin.com/search/results/people/?"
+            + f'network=["F"]'
+            + "&"
+            + f'connectionOf=["{personData["linkedinID"]}"]'
+        )
+
+        nConnections = 10
+        page = 1
+
+        while nConnections == 10:
+
+            driver.get(url + f"&page={page}")
+            fileUtils.waitRandomTime()
+
+            soup = BeautifulSoup(driver.page_source, "html.parser")
+
+            foundConnections = linkedinHtml.extractLinkedinConnections(
+                soup, person, name=personData["name"]
+            )
+
+            nConnections = len(foundConnections)
+            page += 1
+            fileUtils.waitRandomTime()
+
+
+def obtainInterpersonalSecond(driver: webdriver.Chrome) -> None:
+    """
+    Obtain the relationships to the second-degree connections
+    of the logged-in user on LinkedIn and save them to the JSON files.
+
+    Args:
+        - driver (webdriver.Chrome): A Selenium WebDriver instance for Chrome.
+
+    Returns:
+        - None
+    """
+    directConnections = fileUtils.getFirstConnections()
+    allProfiles = fileUtils.getProfiles()
+
+    validProfiles = {
+        k: allProfiles[k]
+        for k in directConnections.keys()
+        if allProfiles[k].get("linkedinID") is not None
+        and allProfiles[k].get("nContacts", 0) > 0
+    }
+
+    # Sort by nContacts in ascending order
+    validProfiles = dict(
+        sorted(
+            validProfiles.items(),
+            key=lambda item: item[1]["nContacts"],
+            reverse=False,
+        )
+    )
+
+    reverseImage = {v["imageUrl"]: k for k, v in allProfiles.items()}
+
+    for person, personData in tqdm.tqdm(
+        validProfiles.items(), desc="Second-degree connections"
+    ):
+        previousConnections = fileUtils.getSecondConnections(person)
+
+        # Have found all connections
+        if personData.get("nContacts", 0) <= len(previousConnections):
+            continue
+
+        url = (
+            "https://www.linkedin.com/search/results/people/?"
+            + f'network=["S"]'
+            + "&"
+            + f'connectionOf=["{personData["linkedinID"]}"]'
+        )
+
+        nConnections = 10
+        page = 1
+
+        while nConnections == 10:
+
+            driver.get(url + f"&page={page}")
+            fileUtils.waitRandomTime()
+
+            soup = BeautifulSoup(driver.page_source, "html.parser")
+
+            foundConnections = linkedinHtml.extractLinkedinConnections(
+                soup, person, name=personData["name"]
+            )
+
+            # Find all the https://media.licdn.com/dms/image/v2/
+            extraConnections = {}
+            urls = soup.find_all(
+                "img",
+                src=lambda x: x
+                and x.startswith("https://media.licdn.com/dms/image/v2/"),
+            )
+            for url in urls:
+                if url["src"] in reverseImage:
+                    profileBaseUrl = reverseImage[url["src"]]
+                    if (
+                        profileBaseUrl not in foundConnections
+                        and profileBaseUrl not in directConnections
+                        and profileBaseUrl != person
+                    ):
+                        extraConnections[profileBaseUrl] = allProfiles[profileBaseUrl]
+
+            foundConnections.update(extraConnections)
+
+            if extraConnections:
+                previousConnections = fileUtils.getSecondConnections(person)
+
+                previousConnections.update(
+                    {k: v["name"] for k, v in extraConnections.items()}
+                )
+
+                fileUtils.saveSecondConnections(
+                    person, personData["name"], previousConnections
+                )
+
+            nConnections = len(foundConnections)
+            page += 1
+            fileUtils.waitRandomTime()
+
+
 def obtainInterpersonalConnections(driver: webdriver.Chrome) -> None:
     """
     Obtain the interpersonal connections of the logged-in user on LinkedIn and save them to the
@@ -183,96 +349,5 @@ def obtainInterpersonalConnections(driver: webdriver.Chrome) -> None:
     Returns:
         - None
     """
-    directConnections = fileUtils.getFirstConnections()
-    allProfiles = fileUtils.getProfiles()
-
-    reverseImage = {v["imageUrl"]: k for k, v in allProfiles.items()}
-
-    for person, personData in tqdm.tqdm(
-        allProfiles.items(), desc="Interpersonal connections"
-    ):
-
-        if personData.get("linkedinID") is None:
-            continue
-
-        previousConnections = fileUtils.getSecondConnections(person)
-
-        typesOfConnections = []
-
-        nPreviousCommonContacts = len(
-            [p for p in previousConnections if p in directConnections]
-        )
-
-        # Not found all the common connections yet
-        if personData.get("nCommonContacts", 0) > nPreviousCommonContacts:
-            typesOfConnections.append("F")
-
-        if (
-            personData.get("nContacts", 0)
-            > len(previousConnections)  # Not found all yet
-            and person
-            in directConnections  # Only find second-degree connections for direct connections
-        ):
-            typesOfConnections.append("S")
-
-        for n in typesOfConnections:
-
-            url = (
-                "https://www.linkedin.com/search/results/people/?"
-                + f'network=["{n}"]'
-                + "&"
-                + f'connectionOf=["{personData["linkedinID"]}"]'
-            )
-
-            nConnections = 10
-            page = 1
-
-            while nConnections == 10:
-
-                driver.get(url + f"&page={page}")
-                fileUtils.waitRandomTime()
-
-                soup = BeautifulSoup(driver.page_source, "html.parser")
-
-                foundConnections = linkedinHtml.extractLinkedinConnections(
-                    soup, person, name=personData["name"]
-                )
-
-                # Only find extra connections with Second-degree
-                if n == "S":
-
-                    # Find all the https://media.licdn.com/dms/image/v2/
-                    extraConnections = {}
-                    urls = soup.find_all(
-                        "img",
-                        src=lambda x: x
-                        and x.startswith("https://media.licdn.com/dms/image/v2/"),
-                    )
-                    for url in urls:
-                        if url["src"] in reverseImage:
-                            profileBaseUrl = reverseImage[url["src"]]
-                            if (
-                                profileBaseUrl not in foundConnections
-                                and profileBaseUrl not in directConnections
-                                and profileBaseUrl != person
-                            ):
-                                extraConnections[profileBaseUrl] = allProfiles[
-                                    profileBaseUrl
-                                ]
-
-                    foundConnections.update(extraConnections)
-
-                    if extraConnections:
-                        previousConnections = fileUtils.getSecondConnections(person)
-
-                        previousConnections.update(
-                            {k: v["name"] for k, v in extraConnections.items()}
-                        )
-
-                        fileUtils.saveSecondConnections(
-                            person, personData["name"], previousConnections
-                        )
-
-                nConnections = len(foundConnections)
-                page += 1
-                fileUtils.waitRandomTime()
+    obtainInterpersonalFirst(driver)
+    obtainInterpersonalSecond(driver)
