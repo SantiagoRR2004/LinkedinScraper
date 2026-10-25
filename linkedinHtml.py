@@ -260,7 +260,7 @@ def extractRecommendedPeople(soup: BeautifulSoup) -> dict[str, dict]:
 
 
 def extractLinkedinConnections(
-    soup: BeautifulSoup, person: str = None
+    soup: BeautifulSoup, person: str = None, name: str = None
 ) -> dict[str, dict]:
     """
     Extract LinkedIn connections from the provided BeautifulSoup object and save them to a JSON file.
@@ -268,6 +268,7 @@ def extractLinkedinConnections(
     Args:
         - soup (BeautifulSoup): A BeautifulSoup object containing the HTML of the LinkedIn connections.
         - person (str): The person's identifier in the dictionary of profiles.
+        - name (str): The person's name.
 
     Returns:
         - dict: A dictionary containing the extracted connections.
@@ -314,7 +315,7 @@ def extractLinkedinConnections(
     if person is None:
         fileUtils.saveFirstConnections(connections)
     else:
-        fileUtils.saveSecondConnections(person, connections)
+        fileUtils.saveSecondConnections(person, name, connections)
 
     return profiles
 
@@ -362,7 +363,9 @@ def extractLinkedinHiddenConnections(
 
         previousConnections.update({k: v["name"] for k, v in extraConnections.items()})
 
-        fileUtils.saveSecondConnections(person, previousConnections)
+        fileUtils.saveSecondConnections(
+            person, allProfiles[person]["name"], previousConnections
+        )
 
 
 def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:

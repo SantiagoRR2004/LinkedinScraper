@@ -112,7 +112,7 @@ def obtainDirectConnections(driver: webdriver.Chrome) -> dict[str, dict]:
     scrollToBottom(driver)
 
     soup = BeautifulSoup(driver.page_source, "html.parser")
-    connections = linkedinHtml.extractLinkedinConnections(soup, person=None)
+    connections = linkedinHtml.extractLinkedinConnections(soup, person=None, name=None)
 
     return connections
 
@@ -234,7 +234,9 @@ def obtainInterpersonalConnections(driver: webdriver.Chrome) -> None:
 
                 soup = BeautifulSoup(driver.page_source, "html.parser")
 
-                foundConnections = linkedinHtml.extractLinkedinConnections(soup, person)
+                foundConnections = linkedinHtml.extractLinkedinConnections(
+                    soup, person, name=personData["name"]
+                )
 
                 # Only find extra connections with Second-degree
                 if n == "S":
@@ -267,7 +269,9 @@ def obtainInterpersonalConnections(driver: webdriver.Chrome) -> None:
                             {k: v["name"] for k, v in extraConnections.items()}
                         )
 
-                        fileUtils.saveSecondConnections(person, previousConnections)
+                        fileUtils.saveSecondConnections(
+                            person, personData["name"], previousConnections
+                        )
 
                 nConnections = len(foundConnections)
                 page += 1

@@ -198,12 +198,13 @@ def saveFirstConnections(firstConnections: dict[str, str]) -> None:
     saveConnections(firstConnections, firstConnectionsFile)
 
 
-def saveSecondConnections(person: str, connections: dict[str, str]) -> None:
+def saveSecondConnections(person: str, name: str, connections: dict[str, str]) -> None:
     """
     Save the connections of a specific person to their corresponding JSON file.
 
     Args:
         - person (str): The person's identifier in the dictionary of profiles.
+        - name (str): The person's name.
         - connections (dict[str, str]): A dictionary containing the connections to save.
 
     Returns:
@@ -212,6 +213,15 @@ def saveSecondConnections(person: str, connections: dict[str, str]) -> None:
     connectionsDirectory = connectionsDirectoryPath()
     filePath = os.path.join(connectionsDirectory, f"{person}.json")
     saveConnections(connections, filePath)
+
+    # Bidirectional
+    for connectionID in connections.keys():
+        inverseConnections = getSecondConnections(connectionID)
+        inverseConnections[person] = name
+
+        inverseFilePath = os.path.join(connectionsDirectory, f"{connectionID}.json")
+
+        saveConnections(inverseConnections, inverseFilePath)
 
 
 def saveInvitations(connections: dict[str, str]) -> None:
