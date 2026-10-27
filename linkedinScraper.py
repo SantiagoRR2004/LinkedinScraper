@@ -230,7 +230,16 @@ def obtainInterpersonalFirst(driver: webdriver.Chrome) -> None:
             v.get("linkedinID") is not None
             and v.get("nCommonContacts", 0) > nPreviousCommonContacts
         ):
-            validProfiles[k] = v
+
+            if v.get("timestampFirst"):
+                seconds = int(time.time()) - v["timestampFirst"]
+
+                # Sample the number of random seconds from ten million
+                if seconds > random.randint(0, 10**7):
+                    validProfiles[k] = v
+
+            else:
+                validProfiles[k] = v
 
     # Sort by nCommonContacts in descending order
     validProfiles = dict(
@@ -304,7 +313,16 @@ def obtainInterpersonalSecond(driver: webdriver.Chrome) -> None:
         if personData.get("linkedinID") is not None and personData.get(
             "nContacts", 0
         ) > len(previousConnections):
-            validProfiles[k] = personData
+
+            if personData.get("timestampSecond"):
+                seconds = int(time.time()) - personData["timestampSecond"]
+
+                # Sample the number of random seconds from ten million
+                if seconds > random.randint(0, 10**7):
+                    validProfiles[k] = personData
+
+            else:
+                validProfiles[k] = personData
 
     # Sort by nContacts in ascending order
     validProfiles = dict(

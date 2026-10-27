@@ -402,6 +402,15 @@ def extractLinkedinConnections(
 
     connections.update({k: v["name"] for k, v in profiles.items()})
 
+    if fileUtils.STORE_PROFILES and person is not None:
+        # Update with connection timestamp
+        timestamp = int(time.time())
+
+        allProfiles = fileUtils.getProfiles()
+        allProfiles[person]["timestampFirst"] = timestamp
+
+        fileUtils.saveProfiles(allProfiles)
+
     if person is None:
         fileUtils.saveFirstConnections(connections)
     else:
@@ -423,11 +432,9 @@ def extractLinkedinHiddenConnections(
     Returns:
         - dict: A dictionary containing the extracted connections.
     """
-    allProfiles = fileUtils.getProfiles()
-
-    directConnections = fileUtils.getFirstConnections()
-
     reverseImage = reverseImageMapping()
+    allProfiles = fileUtils.getProfiles()
+    directConnections = fileUtils.getFirstConnections()
 
     # Find all the https://media.licdn.com/dms/image/v2/
     extraConnections = {}
@@ -449,6 +456,14 @@ def extractLinkedinHiddenConnections(
         fileUtils.saveSecondConnections(
             person, allProfiles[person]["name"], previousConnections
         )
+
+    if fileUtils.STORE_PROFILES and person is not None:
+        # Update with connection timestamp
+        timestamp = int(time.time())
+
+        allProfiles[person]["timestampSecond"] = timestamp
+
+        fileUtils.saveProfiles(allProfiles)
 
     return extraConnections
 
