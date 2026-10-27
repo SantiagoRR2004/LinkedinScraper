@@ -1,7 +1,9 @@
 from selenium.webdriver.chrome.options import Options
 from selenium import webdriver
 import subprocess
+import atexit
 import shutil
+import signal
 import json
 import time
 import os
@@ -19,6 +21,29 @@ def ignoreChromeSingletons(directory: str, names: list[str]) -> list[str]:
         - list[str]: The names of the files to ignore.
     """
     return {name for name in names if name.startswith("Singleton")}
+
+
+def endProcess(process: subprocess.Popen) -> None:
+    """
+    Ends the given process.
+
+    Args:
+        - process (subprocess.Popen): The process to end
+
+    Returns:
+        - None
+    """
+    if process.poll() is not None:
+        return
+
+    # Step 1: Send a SIGINT (interrupt) signal to the entire process group
+    os.killpg(os.getpgid(process.pid), signal.SIGINT)
+
+    # Step 2: Wait for the process to finish
+    process.wait()
+
+    # Poll the process
+    process.poll()
 
 
 def createDriver() -> webdriver.Chrome:
@@ -52,7 +77,7 @@ def createDriver() -> webdriver.Chrome:
         buffering=1,
     )
 
-    subprocess.Popen(
+    browserProcess = subprocess.Popen(
         [
             "google-chrome",
             f"--user-data-dir={dst}",
@@ -60,6 +85,7 @@ def createDriver() -> webdriver.Chrome:
         ],
         stdout=chromeLog,
         stderr=subprocess.STDOUT,
+        preexec_fn=os.setsid,  # Start the process in a new process group
     )
 
     time.sleep(2)
@@ -73,5 +99,7 @@ def createDriver() -> webdriver.Chrome:
     # Connect to the browser using Selenium
     options = Options()
     options.add_experimental_option("debuggerAddress", f"127.0.0.1:9222")
+
+    atexit.register(endProcess, browserProcess)
 
     return webdriver.Chrome(options=options)

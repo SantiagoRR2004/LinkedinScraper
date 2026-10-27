@@ -8,6 +8,3 @@ if __name__ == "__main__":
     linkedinScraper.obtainInvitations(driver)
     linkedinScraper.scrapeMainProfiles(driver)
     linkedinScraper.obtainInterpersonalConnections(driver)
-    driver.quit()
-
-pass
