@@ -75,8 +75,8 @@ def scrapeMainProfiles(driver: webdriver.Chrome) -> dict[str, dict]:
         else:
             seconds = int(time.time()) - profiles[person]["timestamp"]
 
-            # Sample the number of random seconds from a million
-            if seconds > random.randint(0, 10**6):
+            # Sample the number of random seconds from two millions
+            if seconds > random.randint(0, 2 * 10**6):
                 personToScrape.append(person)
 
     # Only scrape the profiles that need to be scraped
@@ -186,11 +186,19 @@ def obtainInterpersonalFirst(driver: webdriver.Chrome) -> None:
     directConnections = fileUtils.getFirstConnections()
     allProfiles = fileUtils.getProfiles()
 
-    validProfiles = {
-        k: v
-        for k, v in allProfiles.items()
-        if v.get("linkedinID") is not None and v.get("nCommonContacts", 0) > 0
-    }
+    validProfiles = {}
+    for k, v in allProfiles.items():
+        previousConnections = fileUtils.getSecondConnections(k)
+
+        nPreviousCommonContacts = len(
+            [p for p in previousConnections if p in directConnections]
+        )
+
+        if (
+            v.get("linkedinID") is not None
+            and v.get("nCommonContacts", 0) > nPreviousCommonContacts
+        ):
+            validProfiles[k] = v
 
     # Sort by nCommonContacts in descending order
     validProfiles = dict(
@@ -205,6 +213,7 @@ def obtainInterpersonalFirst(driver: webdriver.Chrome) -> None:
         validProfiles.items(), desc="First-degree connections"
     ):
 
+        # It can change by adding new connections
         previousConnections = fileUtils.getSecondConnections(person)
 
         nPreviousCommonContacts = len(
@@ -255,12 +264,15 @@ def obtainInterpersonalSecond(driver: webdriver.Chrome) -> None:
     directConnections = fileUtils.getFirstConnections()
     allProfiles = fileUtils.getProfiles()
 
-    validProfiles = {
-        k: allProfiles[k]
-        for k in directConnections.keys()
-        if allProfiles[k].get("linkedinID") is not None
-        and allProfiles[k].get("nContacts", 0) > 0
-    }
+    validProfiles = {}
+    for k in directConnections.keys():
+        personData = allProfiles[k]
+        previousConnections = fileUtils.getSecondConnections(k)
+
+        if personData.get("linkedinID") is not None and personData.get(
+            "nContacts", 0
+        ) > len(previousConnections):
+            validProfiles[k] = personData
 
     # Sort by nContacts in ascending order
     validProfiles = dict(
