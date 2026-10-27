@@ -479,13 +479,19 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
     """
     newInfo = {}
 
+    profileLinks = [
+        link
+        for link in soup.find_all("a", href=True)
+        if "/in/" in link["href"] and link.find("p")
+    ]
     profileLink = next(
         (
             link
-            for link in soup.find_all("a", href=True)
-            if "/in/" in link["href"] and link.find("p")
+            for link in profileLinks
+            if person
+            and urlparse(link["href"]).path.rstrip("/").split("/")[-1] == person
         ),
-        None,
+        profileLinks[0] if profileLinks else None,
     )
 
     profileParagraphs = profileLink.find_all("p")
@@ -545,23 +551,44 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
         re.IGNORECASE,
     )
 
-    # Extract the degree if available
+    # Extract the degree if available. The profile header ends at the location;
+    # searching beyond it includes degrees from feed and recommendation cards.
     degree = None
     for ancestor in profileLink.parents:
         paragraphs = ancestor.find_all("p")
-        currentJobIndex = paragraphs.index(profileParagraphs[1])
+        if location not in paragraphs or profileParagraphs[0] not in paragraphs:
+            continue
 
+        nameIndex = paragraphs.index(profileParagraphs[0])
+        locationIndex = paragraphs.index(location)
+        headerParagraphs = paragraphs[nameIndex:locationIndex]
         degree = next(
             (
                 profileDegree
-                for paragraph in paragraphs[: currentJobIndex + 3]
-                if (profileDegree := extractDegree(paragraph.get_text(" ", strip=True)))
+                for paragraph in headerParagraphs
+                if "•" in paragraph.get_text(" ", strip=True)
+                and (
+                    profileDegree := extractDegree(paragraph.get_text(" ", strip=True))
+                )
                 is not None
             ),
             None,
         )
-        if degree is not None:
-            break
+        if degree is None:
+            degree = next(
+                (
+                    profileDegree
+                    for paragraph in headerParagraphs
+                    if (
+                        profileDegree := extractDegree(
+                            paragraph.get_text(" ", strip=True)
+                        )
+                    )
+                    is not None
+                ),
+                None,
+            )
+        break
 
     if degree is not None:
         newInfo["degree"] = degree
