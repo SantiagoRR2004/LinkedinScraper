@@ -4,6 +4,61 @@ import fileUtils
 import json
 import os
 
+
+def createHTMLList(nodes: dict[str, float], title: str) -> str:
+    """
+    Creates an HTML list of profiles with their scores.
+
+    Args:
+        - nodes (dict[str, float]): A dictionary of nodes with their scores.
+        - title (str): The title for the HTML list.
+
+    Returns:
+        - str: An HTML string representing the list of profiles with their scores.
+    """
+    nodes = dict(
+        sorted(
+            nodes.items(),
+            key=lambda x: (-x[1], fileUtils.normalizeName(profiles[x[0]]["name"])),
+            reverse=False,
+        )
+    )
+
+    html = (
+        '<div style="text-align: center;">'
+        f"<h1>{title}</h1>"
+        '<table style="margin: 0 auto; border-spacing: 12px 0;">'
+        "<thead><tr>"
+        '<th style=""></th>'
+        '<th style=""></th>'
+        '<th style=""></th>'
+        "</tr></thead><tbody>"
+    )
+
+    for node, score in nodes.items():
+        profile = profiles[node]
+        image = (
+            f'<a href="{profile["profileUrl"]}" target="_blank" rel="noopener noreferrer">'
+            + f'<img src="{profile["imageUrl"]}" width="100" height="100"></a>'
+        )
+
+        html += (
+            "<tr>"
+            f'<td style="padding: 0; text-align: right">{score}</td>'
+            f'<td style="padding: 0;">{image}</td>'
+            f'<td style="padding: 0; text-align: left">{profile["name"]}<br>{profile["currentJob"]}'
+        )
+
+        if profile.get("location"):
+            html += f'<br>{profile["location"]}'
+
+        html += "</td></tr>"
+
+    html += "</tbody></table></div>"
+
+    return html
+
+
 if __name__ == "__main__":
     currentDirectory = os.path.dirname(os.path.abspath(__file__))
     peopleDirectory = os.path.join(currentDirectory, "connections")
@@ -33,19 +88,36 @@ if __name__ == "__main__":
         for p, pData in personConnections.items():
             G.add_edge(person, p)
 
-    # Obtain the Unknown nodes with their number of connections
-    unknownNodes = {
-        n: G.degree(n)
-        for n, d in G.nodes(data=True)
-        if "Unknown" in d["type"] and G.degree(n) > 1
-    }
-    unknownNodes = dict(
-        sorted(
-            unknownNodes.items(),
-            key=lambda x: (-x[1], fileUtils.normalizeName(profiles[x[0]]["name"])),
-            reverse=False,
-        )
-    )
+    # Calculate the connection score for each profile
+
+    # Score for Unkown nodes is the number of connections they have with Known nodes
+    for n, d in G.nodes(data=True):
+
+        if "Unknown" in d["type"]:
+            connectedNodes = set(G.successors(n)) | set(G.predecessors(n))
+            d["score"] = len(connectedNodes)
+
+    # Score for Known nodes is the sum of the scores of the Unknown nodes they are connected to
+    # inversely weighted by the score of the Unknown node
+    for n, d in G.nodes(data=True):
+
+        if "Known" in d["type"]:
+            connectedNodes = set(G.successors(n)) | set(G.predecessors(n))
+
+            scoreFromUnknown = 0
+
+            for connectedNode in connectedNodes:
+
+                if "Unknown" in G.nodes[connectedNode]["type"]:
+                    scoreFromUnknown += 1 / G.nodes[connectedNode]["score"]
+
+            d["score"] = scoreFromUnknown
+
+    # Obtain the scores
+    nodesWithScores = {}
+    for n, d in G.nodes(data=True):
+        if "Known" in d["type"] or d["score"] > 0:
+            nodesWithScores[n] = d["score"]
 
     # Rename the nodes
     connectionNames = {k: v["name"] for k, v in profiles.items()}
@@ -78,33 +150,26 @@ if __name__ == "__main__":
     with open(os.path.join(currentDirectory, "LinkedinGraph.html"), "w") as f:
         f.write(graph.createHTML(G))
 
-    # Generate HTML
-    html = (
-        '<div style="text-align: center;">'
-        "<h1>Profiles</h1>"
-        '<table style="margin: 0 auto; border-spacing: 12px 0;">'
-        "<thead><tr>"
-        '<th style=""></th>'
-        '<th style=""></th>'
-        '<th style=""></th>'
-        "</tr></thead><tbody>"
+    # Known profiles
+    html = createHTMLList(
+        {k: v for k, v in nodesWithScores.items() if k in firstConnections},
+        "Connections",
     )
-    for node, degree in unknownNodes.items():
-        profile = profiles[node]
-        image = f'<img src="{profile["imageUrl"]}" ' 'width="100" height="100"> '
-        html += (
-            "<tr>"
-            f'<td style="padding: 0; text-align: right">{degree}</td>'
-            f'<td style="padding: 0;">{image}</td>'
-            f'<td style="padding: 0; text-align: left">{profile["name"]}<br>{profile["currentJob"]}'
-        )
+    with open(os.path.join(currentDirectory, "profilesKnown.html"), "w") as f:
+        f.write(html)
 
-        if profile.get("location"):
-            html += f'<br>{profile["location"]}'
+    # Profiles that are not my connections
+    html = createHTMLList(
+        {k: v for k, v in nodesWithScores.items() if k not in firstConnections},
+        "Profiles that are not my connections",
+    )
+    with open(os.path.join(currentDirectory, "profilesUnknown.html"), "w") as f:
+        f.write(html)
 
-        html += "</td></tr>"
-
-    html += "</tbody></table></div>"
-
+    # Profiles in general
+    html = createHTMLList(
+        {k: v for k, v in nodesWithScores.items() if k in firstConnections or v > 1},
+        "Profiles",
+    )
     with open(os.path.join(currentDirectory, "profiles.html"), "w") as f:
         f.write(html)
