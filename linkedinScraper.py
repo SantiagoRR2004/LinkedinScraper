@@ -51,8 +51,15 @@ def scrollToBottom(driver: webdriver.Chrome) -> None:
 
 def scrapeMainProfiles(driver: webdriver.Chrome) -> dict[str, dict]:
     """
-    Scrape the main profiles of the first connections of the
-    logged-in user on LinkedIn and save them to a JSON file.
+    Scrape the main profiles of profiles and save them to a JSON file.
+
+    These are the conditions to scrape a profile:
+        - It is a connection or an invitation that has never been scraped before.
+        - It is a connection or an invitation that has been scraped before, but the last scrape
+            is sampled from three million seconds.
+        - Random one million if the profile has never been scraped before.
+        - Sampled from one billion seconds if the profile has been scraped before.
+        - Second-degree that don't have the linkedinID or nCommonContacts.
 
     Args:
         - driver (webdriver.Chrome): A Selenium WebDriver instance for Chrome.
@@ -65,19 +72,44 @@ def scrapeMainProfiles(driver: webdriver.Chrome) -> dict[str, dict]:
     invitations = fileUtils.getInvitations()
 
     connectionsData = {}
-    personToScrape = []
+    personToScrape = set()
 
     for person in set(connections.keys()).union(set(invitations.keys())):
 
         if not profiles[person].get("timestamp"):
-            personToScrape.append(person)
+            personToScrape.add(person)
 
         else:
             seconds = int(time.time()) - profiles[person]["timestamp"]
 
-            # Sample the number of random seconds from two millions
-            if seconds > random.randint(0, 2 * 10**6):
-                personToScrape.append(person)
+            # Sample the number of random seconds from three million
+            if seconds > random.randint(0, 3 * 10**6):
+                personToScrape.add(person)
+
+    for person, personData in profiles.items():
+
+        if not personData.get("timestamp") and random.randint(0, 10**6) == 0:
+            personToScrape.add(person)
+
+        elif personData.get("timestamp"):
+            seconds = int(time.time()) - personData["timestamp"]
+
+            # Sample the number of random seconds from one billion
+            if seconds > random.randint(0, 10**9):
+                personToScrape.add(person)
+
+        if personData.get("nCommonContacts", 0) > 0:
+
+            if not personData.get("linkedinID"):
+                personToScrape.add(person)
+
+        elif personData.get("degree", 0) == 2:
+
+            if (
+                not personData.get("linkedinID")
+                or personData.get("nCommonContacts") is None
+            ):
+                personToScrape.add(person)
 
     # Only scrape the profiles that need to be scraped
     for person in tqdm.tqdm(personToScrape, desc="Scraping main profiles"):
