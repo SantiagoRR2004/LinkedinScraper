@@ -6,6 +6,27 @@ import time
 import re
 
 
+def extractDegree(text: str) -> int | None:
+    """
+    Extract a LinkedIn connection degree from a localized label.
+
+    Args:
+        - text (str): The text containing the degree label.
+
+    Returns:
+        - int | None: The extracted degree as an integer, or None if not found.
+    """
+    match = re.search(
+        r"(?:^|[·•]\s*)(1er|2º|3er)\+?(?:\s|$)",
+        text.strip(),
+        re.IGNORECASE,
+    )
+    if not match:
+        return None
+
+    return int(match.group(1)[0])
+
+
 def reverseImageMapping() -> dict[str, str]:
     """
     Create a reverse mapping of image URLs to profile IDs from the stored profiles.
@@ -74,6 +95,7 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
     It can also obtain:
         - location
         - nCommonContacts
+        - degree
 
     Args:
         - elements (list[element.Tag]): A list of BeautifulSoup elements containing the profile information.
@@ -126,6 +148,19 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
             if "siguen esta página" in name.lower():
                 continue
 
+            degree = next(
+                (
+                    profileDegree
+                    for paragraph in profileParagraphs[:2]
+                    if (
+                        profileDegree := extractDegree(
+                            paragraph.get_text(" ", strip=True)
+                        )
+                    )
+                    is not None
+                ),
+                None,
+            )
             name = (
                 name.replace("• 1er", "")
                 .replace("• 2º", "")
@@ -136,7 +171,7 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
             profileDetails = []
             for paragraph in profileParagraphs[1:]:
                 text = paragraph.get_text(" ", strip=True)
-                if not re.fullmatch(r"[•·]\s*\d+(?:er|º)\+?", text):
+                if extractDegree(text) is None:
                     profileDetails.append(text)
 
         currentJob = profileDetails[0]
@@ -186,6 +221,9 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
                 "currentJob": currentJob,
             }
         )
+
+        if not isInvitation and degree is not None:
+            profiles[profileID]["degree"] = degree
 
         # Find optional internal LinkedIn identifier
         if messageLink:
@@ -425,6 +463,7 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
         - imageUrl
         - currentJob
         - location
+        - degree
         - nContacts
         - nCommonContacts
 
@@ -505,6 +544,27 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
         profileText,
         re.IGNORECASE,
     )
+
+    # Extract the degree if available
+    degree = None
+    for ancestor in profileLink.parents:
+        paragraphs = ancestor.find_all("p")
+        currentJobIndex = paragraphs.index(profileParagraphs[1])
+
+        degree = next(
+            (
+                profileDegree
+                for paragraph in paragraphs[: currentJobIndex + 3]
+                if (profileDegree := extractDegree(paragraph.get_text(" ", strip=True)))
+                is not None
+            ),
+            None,
+        )
+        if degree is not None:
+            break
+
+    if degree is not None:
+        newInfo["degree"] = degree
 
     # Total number of contacts
     nContacts = (
