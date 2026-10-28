@@ -85,7 +85,6 @@ def createDriver() -> webdriver.Chrome:
         ],
         stdout=chromeLog,
         stderr=subprocess.STDOUT,
-        preexec_fn=os.setsid,  # Start the process in a new process group
     )
 
     time.sleep(2)
