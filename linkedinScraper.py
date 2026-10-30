@@ -111,6 +111,13 @@ def scrapeMainProfiles(driver: webdriver.Chrome) -> dict[str, dict]:
             ):
                 personToScrape.add(person)
 
+    # Sort by nCommonContacts in descending order
+    personToScrape = sorted(
+        personToScrape,
+        key=lambda person: profiles[person].get("nCommonContacts", 0),
+        reverse=True,
+    )
+
     # Only scrape the profiles that need to be scraped
     for person in tqdm.tqdm(personToScrape, desc="Scraping main profiles"):
 

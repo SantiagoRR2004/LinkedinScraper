@@ -5,13 +5,71 @@ import json
 import os
 
 
-def createHTMLList(nodes: dict[str, float], title: str) -> str:
+def adaptiveRounding(values: list[float], maxDecimals: int = 10) -> list[float]:
+    """
+    Rounds the values in the list to a number of decimals that ensures that no two consecutive
+    values are equal after rounding.
+
+    It also checks truncation to avoid cases like 10.5 and 10.4 being
+    rounded to 11 and 10 respectively.
+
+    Args:
+        - values (list[float]): The list of values to be rounded.
+        - maxDecimals (int): The maximum number of decimals to round to.
+
+    Returns:
+        - list[float]: The list of rounded values.
+    """
+    result = []
+
+    for i, value in enumerate(values):
+        for decimals in range(0, maxDecimals + 1):
+            rounded = round(value, decimals)
+            trunc = int(rounded * (10**decimals)) / (10**decimals)
+
+            previousRounded = round(values[i - 1], decimals) if i > 0 else None
+            previousTrunc = (
+                int(values[i - 1] * (10**decimals)) / (10**decimals) if i > 0 else None
+            )
+
+            nextRounded = (
+                round(values[i + 1], decimals) if i < len(values) - 1 else None
+            )
+            nextTrunc = (
+                int(values[i + 1] * (10**decimals)) / (10**decimals)
+                if i < len(values) - 1
+                else None
+            )
+
+            roundedOk = rounded not in (
+                previousRounded,
+                previousTrunc,
+                nextRounded,
+                nextTrunc,
+            )
+            truncOk = trunc not in (
+                previousRounded,
+                previousTrunc,
+                nextRounded,
+                nextTrunc,
+            )
+
+            if roundedOk and truncOk:
+                break
+
+        result.append(rounded)
+
+    return result
+
+
+def createHTMLList(nodes: dict[str, float], title: str, useColor: bool = False) -> str:
     """
     Creates an HTML list of profiles with their scores.
 
     Args:
         - nodes (dict[str, float]): A dictionary of nodes with their scores.
         - title (str): The title for the HTML list.
+        - useColor (bool): Whether to color the scores based on their type (Known or Unknown).
 
     Returns:
         - str: An HTML string representing the list of profiles with their scores.
@@ -21,6 +79,14 @@ def createHTMLList(nodes: dict[str, float], title: str) -> str:
             nodes.items(),
             key=lambda x: (-x[1], fileUtils.normalizeName(profiles[x[0]]["name"])),
             reverse=False,
+        )
+    )
+
+    # Replace the scores with the rounded scores
+    nodes = dict(
+        zip(
+            nodes.keys(),
+            adaptiveRounding(list(nodes.values())),
         )
     )
 
@@ -35,6 +101,8 @@ def createHTMLList(nodes: dict[str, float], title: str) -> str:
         "</tr></thead><tbody>"
     )
 
+    color = ""
+
     for node, score in nodes.items():
         profile = profiles[node]
         image = (
@@ -42,9 +110,12 @@ def createHTMLList(nodes: dict[str, float], title: str) -> str:
             + f'<img src="{profile["imageUrl"]}" width="100" height="100"></a>'
         )
 
+        if useColor:
+            color = "color: " + ("red" if node in firstConnections else "blue") + ";"
+
         html += (
             "<tr>"
-            f'<td style="padding: 0; text-align: right">{score}</td>'
+            f'<td style="padding: 0; text-align: right; {color}">{format(score, '.15g')}</td>'
             f'<td style="padding: 0;">{image}</td>'
             f'<td style="padding: 0; text-align: left">{profile["name"]}<br>{profile["currentJob"]}'
         )
@@ -87,6 +158,16 @@ if __name__ == "__main__":
 
         for p, pData in personConnections.items():
             G.add_edge(person, p)
+
+    # Remove the nodes that are not connected to any Known nodes
+    G.remove_nodes_from(
+        [
+            node
+            for node in G.nodes()
+            if "Known" not in G.nodes[node]["type"]
+            and len(set(G.successors(node)) | set(G.predecessors(node))) == 0
+        ]
+    )
 
     # Calculate the connection score for each profile
 
@@ -170,6 +251,7 @@ if __name__ == "__main__":
     html = createHTMLList(
         {k: v for k, v in nodesWithScores.items() if k in firstConnections or v > 1},
         "Profiles",
+        useColor=True,
     )
     with open(os.path.join(currentDirectory, "profiles.html"), "w") as f:
         f.write(html)
