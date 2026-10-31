@@ -152,12 +152,21 @@ if __name__ == "__main__":
 
     for person in connectionFiles:
 
+        if person not in G.nodes():
+            print(f"{person} not in profiles.json")
+            continue
+
         filePath = os.path.join(peopleDirectory, f"{person}.json")
 
         with open(filePath, "r", encoding="utf-8") as f:
             personConnections: dict = json.load(f)
 
         for p, pData in personConnections.items():
+
+            if p not in G.nodes():
+                print(f"{p} not in profiles.json")
+                continue
+
             G.add_edge(person, p)
 
     # Remove the nodes that are not connected to any Known nodes
@@ -170,36 +179,95 @@ if __name__ == "__main__":
         ]
     )
 
+    # Calculate number of connections as intermediate result
+    for n, d in G.nodes(data=True):
+        connectedNodes = set(G.successors(n)) | set(G.predecessors(n))
+        d["numConnections"] = len(connectedNodes)
+
+    maxneighbourhoodExclusivityKnown = 0
+    maxneighbourhoodExclusivityUnknown = 0
+    maxknownConnectionsPercentage = 0
+    maxknownConnectionsOfTotalPercentage = 0
+
     # Calculate the connection score for each profile
-
-    # Score for Unkown nodes is the number of connections they have with Known nodes
     for n, d in G.nodes(data=True):
 
-        if "Unknown" in d["type"]:
-            connectedNodes = set(G.successors(n)) | set(G.predecessors(n))
-            d["score"] = len(connectedNodes)
+        connectedNodes = set(G.successors(n)) | set(G.predecessors(n))
 
-    # Score for Known nodes is the sum of the scores of the Unknown nodes they are connected to
-    # inversely weighted by the score of the Unknown node
+        scoreFromOthers = 0
+        numKnownConnections = 0
+
+        for connectedNode in connectedNodes:
+
+            scoreFromOthers += 1 / G.nodes[connectedNode]["numConnections"]
+
+            if "Known" in G.nodes[connectedNode]["type"]:
+                numKnownConnections += 1
+
+        d["neighbourhoodExclusivity"] = (
+            100 * scoreFromOthers / d["numConnections"]
+            if d["numConnections"] > 0
+            else 0
+        )
+        if "Known" in d["type"]:
+            maxneighbourhoodExclusivityKnown = max(
+                maxneighbourhoodExclusivityKnown, d["neighbourhoodExclusivity"]
+            )
+        else:
+            maxneighbourhoodExclusivityUnknown = max(
+                maxneighbourhoodExclusivityUnknown, d["neighbourhoodExclusivity"]
+            )
+
+        d["knownConnectionsPercentage"] = (
+            100 * numKnownConnections / len(firstConnections)
+        )
+        maxknownConnectionsPercentage = max(
+            maxknownConnectionsPercentage, d["knownConnectionsPercentage"]
+        )
+
+        if profiles[n].get("nContacts") is not None:
+            numConnections = profiles[n]["nContacts"]
+            d["knownConnectionsOfTotalPercentage"] = (
+                100 * numKnownConnections / (numConnections + numKnownConnections)
+                if numConnections > 0
+                else 0
+            )
+        else:
+            d["knownConnectionsOfTotalPercentage"] = 0
+
+        maxknownConnectionsOfTotalPercentage = max(
+            maxknownConnectionsOfTotalPercentage, d["knownConnectionsOfTotalPercentage"]
+        )
+
+    # Use the mean of the normalized values
     for n, d in G.nodes(data=True):
+
+        scoreParts = []
 
         if "Known" in d["type"]:
-            connectedNodes = set(G.successors(n)) | set(G.predecessors(n))
+            scoreParts.append(
+                100 * d["neighbourhoodExclusivity"] / maxneighbourhoodExclusivityKnown
+            )
+        else:
+            scoreParts.append(
+                100 * d["neighbourhoodExclusivity"] / maxneighbourhoodExclusivityUnknown
+            )
 
-            scoreFromUnknown = 0
+        scoreParts.append(
+            100 * d["knownConnectionsPercentage"] / maxknownConnectionsPercentage
+        )
+        scoreParts.append(
+            100
+            * d["knownConnectionsOfTotalPercentage"]
+            / maxknownConnectionsOfTotalPercentage
+        )
 
-            for connectedNode in connectedNodes:
-
-                if "Unknown" in G.nodes[connectedNode]["type"]:
-                    scoreFromUnknown += 1 / G.nodes[connectedNode]["score"]
-
-            d["score"] = scoreFromUnknown
+        d["score"] = sum(scoreParts) / len(scoreParts)
 
     # Obtain the scores
     nodesWithScores = {}
     for n, d in G.nodes(data=True):
-        if "Known" in d["type"] or d["score"] > 0:
-            nodesWithScores[n] = d["score"]
+        nodesWithScores[n] = d["score"]
 
     # Rename the nodes
     connectionNames = {k: v["name"] for k, v in profiles.items()}
