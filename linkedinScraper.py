@@ -98,18 +98,24 @@ def scrapeMainProfiles(driver: webdriver.Chrome) -> dict[str, dict]:
             if seconds > random.randint(0, 10**9):
                 personToScrape.add(person)
 
-        if personData.get("nCommonContacts", 0) > 0:
+        if not personData.get("timestamp"):
 
-            if not personData.get("linkedinID"):
-                personToScrape.add(person)
+            if personData.get("nCommonContacts", 0) > 0:
 
-        elif personData.get("degree", 0) == 2:
+                previousConnections = fileUtils.getSecondConnections(person)
 
-            if (
-                not personData.get("linkedinID")
-                or personData.get("nCommonContacts") is None
-            ):
-                personToScrape.add(person)
+                if not personData.get("linkedinID") and len(
+                    previousConnections
+                ) < personData.get("nCommonContacts", 0):
+                    personToScrape.add(person)
+
+            elif personData.get("degree", 0) == 2:
+
+                if (
+                    not personData.get("linkedinID")
+                    and personData.get("nCommonContacts") is None
+                ):
+                    personToScrape.add(person)
 
     # Sort by nCommonContacts in descending order
     personToScrape = sorted(
