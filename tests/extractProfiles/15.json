@@ -3,7 +3,9 @@
     "name": "Barack Obama",
     "profileUrl": "https://www.linkedin.com/in/barackobama/",
     "currentJob": "Former President of the United States of America",
-    "imageUrl": "https://media.licdn.com/dms/image/v2/D4E03AQGcice3q3BiUQ/profile-displayphoto-scale_100_100/B4EZoczRWLJgAc-/0/1761419796900?e=1794441600&v=beta&t=H7HPdWMcx2bOFnATDkwzX_ST_Ryo2A-Tf_XEA6Yjv_o",
+    "imageUrls": [
+      "https://media.licdn.com/dms/image/v2/D4E03AQGcice3q3BiUQ/profile-displayphoto-scale_100_100/B4EZoczRWLJgAc-/0/1761419796900?e=1794441600&v=beta&t=H7HPdWMcx2bOFnATDkwzX_ST_Ryo2A-Tf_XEA6Yjv_o"
+    ],
     "nCommonContacts": 1
   }
 }

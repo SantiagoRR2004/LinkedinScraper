@@ -105,9 +105,10 @@ def createHTMLList(nodes: dict[str, float], title: str, useColor: bool = False) 
 
     for node, score in nodes.items():
         profile = profiles[node]
+        imageUrls = profile.get("imageUrls")
         image = (
             f'<a href="{profile["profileUrl"]}" target="_blank" rel="noopener noreferrer">'
-            + f'<img src="{profile["imageUrl"]}" width="100" height="100"></a>'
+            + f'<img src="{imageUrls[0] if imageUrls else ""}" width="100" height="100"></a>'
         )
 
         if useColor:

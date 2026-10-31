@@ -6,6 +6,32 @@ import time
 import re
 
 
+def extractImageUrls(images: list[element.Tag]) -> list[str]:
+    """
+    Extract unique image sources and responsive source-set entries.
+
+    Args:
+        - images (list[element.Tag]): A list of BeautifulSoup image elements.
+
+    Returns:
+        - list[str]: A sorted list of unique image URLs.
+    """
+    imageUrls = set()
+
+    for image in images:
+
+        if image.get("src"):
+            imageUrls.add(image["src"])
+
+        imageUrls.update(
+            source.split()[0]
+            for source in image.get("srcset", "").split(",")
+            if source.strip()
+        )
+
+    return sorted(imageUrls)
+
+
 def extractDegree(text: str) -> int | None:
     """
     Extract a LinkedIn connection degree from a localized label.
@@ -42,35 +68,43 @@ def reverseImageMapping() -> dict[str, str]:
     allProfiles = fileUtils.getProfiles()
 
     # Check that there are no duplicate image URLs
-    imageUrls = [v["imageUrl"] for v in allProfiles.values()]
+    imageUrls = [
+        imageUrl
+        for profile in allProfiles.values()
+        for imageUrl in profile["imageUrls"]
+    ]
     counts = Counter(url for url in imageUrls if url)
 
     for profile in allProfiles.values():
-        url = profile["imageUrl"]
+        urls = profile["imageUrls"]
+        validUrls = []
 
-        if url == "":
-            continue
+        for url in urls:
 
-        # Check the timestamp ?e=1794441600
-        query = parse_qs(urlparse(url).query)
-        timestamp = query.get("e", [None])[0]
+            # Check the timestamp ?e=##############
+            query = parse_qs(urlparse(url).query)
+            timestamp = query.get("e", [None])[0]
 
-        # Delete if the timestamp is in the past
-        if int(timestamp) < int(time.time()):
-            print(f"{profile['name']} has an expired image URL")
-            profile["imageUrl"] = ""
-            continue
+            # Delete if the timestamp is in the past
+            if timestamp is not None and int(timestamp) < int(time.time()):
+                print(f"{profile['name']} has an expired image URL")
+                continue
 
-        # Change image to "" for the duplicates
-        if counts[url] > 1:
+            # Delete if the URL is a duplicate
+            if counts[url] > 1:
+                print(f"{profile['name']} has a duplicate image URL: {url}")
+                continue
 
-            print(f"{profile["name"]} has a duplicate image URL: {url}")
-            profile["imageUrl"] = ""
+            validUrls.append(url)
+
+        profile["imageUrls"] = validUrls
 
     fileUtils.saveProfiles(allProfiles)
 
     reverseImage = {
-        v["imageUrl"]: k for k, v in allProfiles.items() if v["imageUrl"] != ""
+        imageUrl: profileId
+        for profileId, profile in allProfiles.items()
+        for imageUrl in profile["imageUrls"]
     }
 
     return reverseImage
@@ -85,7 +119,7 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
     This will always obtain:
         - name
         - profileUrl (can be empty)
-        - imageUrl
+        - imageUrls
         - currentJob
 
     It can obtain the internal LinkedIn identifier if:
@@ -177,24 +211,24 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
         currentJob = profileDetails[0]
 
         profileUrl = profileLink["href"]
-        image = next(
-            (
-                link.find(
-                    "img",
-                    src=lambda src: src
-                    and ("profile-displayphoto" in src or "profile-framedphoto" in src),
-                )
-                for link in links
-                if link.get("href") == profileUrl
-                and link.find(
-                    "img",
-                    src=lambda src: src
-                    and ("profile-displayphoto" in src or "profile-framedphoto" in src),
-                )
-            ),
-            None,
+        profileImages = [
+            image
+            for link in links
+            if link.get("href") == profileUrl
+            for image in link.find_all(
+                "img",
+                src=lambda src: src
+                and ("profile-displayphoto" in src or "profile-framedphoto" in src),
+            )
+        ]
+        framedProfileImages = [
+            image
+            for image in profileImages
+            if "profile-framedphoto" in image.get("src", "")
+        ]
+        imageUrls = extractImageUrls(
+            framedProfileImages[:1] if framedProfileImages else profileImages[:1]
         )
-        imageUrl = image["src"] if image else ""
 
         # Get the last segment of the profile URL
         pathParts = urlparse(profileUrl).path.strip("/").split("/")
@@ -217,10 +251,19 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
             {
                 "name": name,
                 "profileUrl": profileUrl,
-                "imageUrl": imageUrl,
                 "currentJob": currentJob,
             }
         )
+
+        # Add new images to the existing list of images
+        if profiles[profileID].get("imageUrls"):
+
+            allImages = profiles[profileID]["imageUrls"]
+            allImages += imageUrls
+            profiles[profileID]["imageUrls"] = list(set(allImages))
+
+        else:
+            profiles[profileID]["imageUrls"] = imageUrls
 
         if not isInvitation and degree is not None:
             profiles[profileID]["degree"] = degree
