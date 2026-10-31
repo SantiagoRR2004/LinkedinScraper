@@ -184,6 +184,31 @@ def saveConnections(connections: dict[str, str], filePath: str) -> None:
         f.write("\n")
 
 
+def addNewConnections(personA: str, personB: str, personBName) -> None:
+    """
+    Add a new connection between two people and save the updated connections.
+
+    Args:
+        - personA (str): The identifier of the first person.
+        - personB (str): The identifier of the second person.
+        - personBName (str): The name of the second person.
+
+    Returns:
+        - None
+    """
+    if not STORE_PROFILES:
+        return
+
+    connectionsDirectory = connectionsDirectoryPath()
+
+    inverseConnections = getSecondConnections(personA)
+    inverseConnections[personB] = personBName
+
+    inverseFilePath = os.path.join(connectionsDirectory, f"{personA}.json")
+
+    saveConnections(inverseConnections, inverseFilePath)
+
+
 def saveFirstConnections(firstConnections: dict[str, str]) -> None:
     """
     Save the first connections to the connections.json file.
@@ -216,12 +241,37 @@ def saveSecondConnections(person: str, name: str, connections: dict[str, str]) -
 
     # Bidirectional
     for connectionID in connections.keys():
-        inverseConnections = getSecondConnections(connectionID)
-        inverseConnections[person] = name
 
-        inverseFilePath = os.path.join(connectionsDirectory, f"{connectionID}.json")
+        addNewConnections(connectionID, person, name)
 
-        saveConnections(inverseConnections, inverseFilePath)
+
+def saveIncompleteConnections(person: str, connections: list[str]) -> None:
+    """
+    Save some new connections of a specific person to their corresponding JSON file.
+
+    Args:
+        - person (str): The person's identifier in the dictionary of profiles.
+        - connections (list[str]): A list containing some profiles the person is
+            connected to.
+
+    Returns:
+        - None
+    """
+    if not STORE_PROFILES:
+        return
+
+    allProfiles = getProfiles()
+
+    # Try to get the names
+    name = allProfiles.get(person, {}).get("name", "Unknown")
+    connectionsWithNames = {
+        connection: allProfiles.get(connection, {}).get("name", "Unknown")
+        for connection in connections
+    }
+
+    for connectionID, connectionName in connectionsWithNames.items():
+        addNewConnections(connectionID, person, name)
+        addNewConnections(person, connectionID, connectionName)
 
 
 def saveInvitations(connections: dict[str, str]) -> None:

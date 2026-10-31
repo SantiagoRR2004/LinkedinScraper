@@ -110,6 +110,78 @@ def reverseImageMapping() -> dict[str, str]:
     return reverseImage
 
 
+def getnCommonContacts(
+    commonContactsContainer: element.Tag, person: str, countStrong: bool = False
+) -> int:
+    """
+    Extract the number of common contacts from the provided BeautifulSoup element.
+
+    Args:
+        - commonContactsContainer (element.Tag): A BeautifulSoup element containing the common contacts information.
+        - person (str): The person's identifier in the dictionary of profiles.
+        - countStrong (bool): Whether to count the number of <strong> tags as common contacts. Defaults to False.
+
+    Returns:
+        - int: The number of common contacts.
+    """
+    commonContactsText = commonContactsContainer.get_text(" ", strip=True)
+    commonContactsMatch = re.search(
+        r"\b(\d[\d.,]*)\s+contactos?\s+m[aá]s" r"(?:\s+en\s+com[uú]n)?\b",
+        commonContactsText,
+        re.IGNORECASE,
+    )
+    commonContactProfiles = {
+        urlparse(link["href"]).path.strip("/")
+        for link in commonContactsContainer.find_all("a", href=True)
+        if urlparse(link["href"]).path.strip("/").startswith("in/")
+    }
+    nCommonContacts = (
+        len(commonContactsContainer.find_all("strong"))
+        if countStrong
+        else len(commonContactProfiles)
+    )
+
+    if commonContactsMatch:
+        nCommonContacts += int(
+            commonContactsMatch.group(1).replace(".", "").replace(",", "")
+        )
+
+        # Recommendation cards render the first mutual contact as plain text
+        if (
+            not countStrong
+            and not commonContactProfiles
+            and commonContactsText[: commonContactsMatch.start()].strip()
+        ):
+            nCommonContacts += 1
+    elif (
+        re.search(
+            r"\bcontactos?\s+en\s+com[uú]n\b",
+            commonContactsText,
+            re.IGNORECASE,
+        )
+        and not countStrong
+    ):
+        nCommonContacts = 1
+
+    connectionsImages = [
+        image.get("src") for image in commonContactsContainer.find_all("img")
+    ]
+
+    assert (
+        len(connectionsImages) <= nCommonContacts
+    ), f"Found {len(connectionsImages)} images but {nCommonContacts} common contacts"
+
+    reverseImages = reverseImageMapping()
+
+    connectionsFound = [
+        reverseImages[image] for image in connectionsImages if image in reverseImages
+    ]
+
+    fileUtils.saveIncompleteConnections(person, connectionsFound)
+
+    return nCommonContacts
+
+
 def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
     """
     Extract the profiles from the provided list of BeautifulSoup elements.
@@ -118,8 +190,8 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
 
     This will always obtain:
         - name
-        - profileUrl (can be empty)
-        - imageUrls
+        - profileUrl
+        - imageUrls (can be empty)
         - currentJob
 
     It can obtain the internal LinkedIn identifier if:
@@ -312,39 +384,10 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
         )
 
         if commonContactsContainer:
-            nCommonContacts = 0
-            commonContactsText = commonContactsContainer.get_text(" ", strip=True)
-            commonContactsMatch = re.search(
-                r"\b(\d[\d.,]*)\s+contactos?\s+m[aá]s" r"(?:\s+en\s+com[uú]n)?\b",
-                commonContactsText,
-                re.IGNORECASE,
+
+            profiles[profileID]["nCommonContacts"] = getnCommonContacts(
+                commonContactsContainer, person=profileID
             )
-            commonContactProfiles = {
-                urlparse(link["href"]).path.strip("/")
-                for link in commonContactsContainer.find_all("a", href=True)
-                if urlparse(link["href"]).path.strip("/").startswith("in/")
-            }
-            nCommonContacts = len(commonContactProfiles)
-
-            if commonContactsMatch:
-                nCommonContacts += int(
-                    commonContactsMatch.group(1).replace(".", "").replace(",", "")
-                )
-
-                # Recommendation cards render the first mutual contact as plain text
-                if (
-                    not commonContactProfiles
-                    and commonContactsText[: commonContactsMatch.start()].strip()
-                ):
-                    nCommonContacts += 1
-            elif re.search(
-                r"\bcontactos?\s+en\s+com[uú]n\b",
-                commonContactsText,
-                re.IGNORECASE,
-            ):
-                nCommonContacts = 1
-
-            profiles[profileID]["nCommonContacts"] = nCommonContacts
 
     fileUtils.saveProfiles(profiles)
 
@@ -690,18 +733,9 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
     )
 
     if commonContactsLink:
-        commonContactsText = commonContactsLink.get_text(" ", strip=True)
-        commonContactsMatch = re.search(
-            r"\b(\d[\d.,]*)\s+contactos?\s+m[aá]s\s+en\s+com[uú]n\b",
-            commonContactsText,
-            re.IGNORECASE,
+        newInfo["nCommonContacts"] = getnCommonContacts(
+            commonContactsLink, person=person, countStrong=True
         )
-        nCommonContacts = len(commonContactsLink.find_all("strong"))
-        if commonContactsMatch:
-            nCommonContacts += int(
-                commonContactsMatch.group(1).replace(".", "").replace(",", "")
-            )
-        newInfo["nCommonContacts"] = nCommonContacts
 
     else:
         newInfo["nCommonContacts"] = 0
