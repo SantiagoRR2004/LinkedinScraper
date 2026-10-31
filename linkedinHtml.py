@@ -518,7 +518,7 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
     It will add:
         - name
         - profileUrl
-        - imageUrl
+        - imageUrls
         - currentJob
         - location
         - degree
@@ -557,10 +557,26 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
     # Extract the name, profile URL, and image URL
     newInfo["name"] = profileParagraphs[0].get_text(" ", strip=True)
     newInfo["profileUrl"] = profileLink["href"]
-    newInfo["imageUrl"] = (
-        profileLink.find("img", src=True).get("src", "")
-        if profileLink.find("img", src=True)
-        else ""
+    profilePath = urlparse(profileLink["href"]).path.rstrip("/")
+    topcardLink = soup.find(
+        "a",
+        attrs={"componentkey": "topcard-logo-image-referencekey"},
+        href=True,
+    )
+    profileImageLinks = [profileLink]
+    if topcardLink and urlparse(topcardLink["href"]).path.rstrip("/") == profilePath:
+        profileImageLinks.append(topcardLink)
+
+    newInfo["imageUrls"] = extractImageUrls(
+        [
+            image
+            for link in profileImageLinks
+            for image in link.find_all(
+                "img",
+                src=lambda src: src
+                and ("profile-displayphoto" in src or "profile-framedphoto" in src),
+            )
+        ]
     )
 
     # Extract the current job

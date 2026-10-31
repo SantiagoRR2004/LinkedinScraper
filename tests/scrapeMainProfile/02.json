@@ -2,7 +2,12 @@
   "name": "Bill Gates",
   "profileUrl": "https://www.linkedin.com/in/williamhgates/",
   "linkedinID": "ACoAAA8BYqEBCGLg_vT_ca6mMEqkpp9nVffJ3hc",
-  "imageUrl": "https://media.licdn.com/dms/image/v2/D5603AQF-RYZP55jmXA/profile-displayphoto-shrink_100_100/B56ZRi8g.aGsAU-/0/1736826818802?e=1794441600&v=beta&t=Xs8GZTKSYjh9xMNIJAAolukH0zb5Li8S7HhhunVsvzQ",
+  "imageUrls": [
+    "https://media.licdn.com/dms/image/v2/D5603AQF-RYZP55jmXA/profile-displayphoto-shrink_100_100/B56ZRi8g.aGsAU-/0/1736826818802?e=1794441600&v=beta&t=Xs8GZTKSYjh9xMNIJAAolukH0zb5Li8S7HhhunVsvzQ",
+    "https://media.licdn.com/dms/image/v2/D5603AQF-RYZP55jmXA/profile-displayphoto-shrink_200_200/B56ZRi8g.aGsAY-/0/1736826818802?e=1794441600&v=beta&t=zvu0fOSIVu06pk6aURZqfOcI4Syco9KBF_exLTIuPPQ",
+    "https://media.licdn.com/dms/image/v2/D5603AQF-RYZP55jmXA/profile-displayphoto-shrink_400_400/B56ZRi8g.aGsAg-/0/1736826818802?e=1794441600&v=beta&t=YtJH4USKHERANRqKupUNZhpd4R_aE8i0IfWxplsSbwU",
+    "https://media.licdn.com/dms/image/v2/D5603AQF-RYZP55jmXA/profile-displayphoto-shrink_800_800/B56ZRi8g.aGsAc-/0/1736826818808?e=1794441600&v=beta&t=yD_DYYEhXM5rhNQbkRB8dMoZHqky0ALVKTyJW63YNeA"
+  ],
   "currentJob": "Chair, Gates Foundation and Founder, Breakthrough Energy",
   "location": "Seattle, Washington, Estados Unidos",
   "nContacts": 0,

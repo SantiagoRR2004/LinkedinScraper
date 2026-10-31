@@ -2,7 +2,12 @@
   "name": "Barack Obama",
   "profileUrl": "https://www.linkedin.com/in/barackobama/",
   "linkedinID": "ACoAAAC2EzMB7j1OC2l5XFXf1vNlYdp8HaZcSr4",
-  "imageUrl": "https://media.licdn.com/dms/image/v2/D4E03AQGcice3q3BiUQ/profile-displayphoto-scale_100_100/B4EZoczRWLJgAc-/0/1761419796900?e=1794441600&v=beta&t=H7HPdWMcx2bOFnATDkwzX_ST_Ryo2A-Tf_XEA6Yjv_o",
+  "imageUrls": [
+    "https://media.licdn.com/dms/image/v2/D4E03AQGcice3q3BiUQ/profile-displayphoto-crop_800_800/B4EZoczRWLJgAI-/0/1761419796794?e=1794441600&v=beta&t=y8HwnDmsJE-WLcwS3VdoYwlmccDUwrevX8CcSOL8P-s",
+    "https://media.licdn.com/dms/image/v2/D4E03AQGcice3q3BiUQ/profile-displayphoto-scale_100_100/B4EZoczRWLJgAc-/0/1761419796900?e=1794441600&v=beta&t=H7HPdWMcx2bOFnATDkwzX_ST_Ryo2A-Tf_XEA6Yjv_o",
+    "https://media.licdn.com/dms/image/v2/D4E03AQGcice3q3BiUQ/profile-displayphoto-scale_200_200/B4EZoczRWLJgAY-/0/1761419796900?e=1794441600&v=beta&t=2pIf_CDPWYbe9-nZXBYGHM-2xlHumIepJVYWdMiPV5o",
+    "https://media.licdn.com/dms/image/v2/D4E03AQGcice3q3BiUQ/profile-displayphoto-scale_400_400/B4EZoczRWLJgAg-/0/1761419796900?e=1794441600&v=beta&t=M6F2-ubO2NmFTXCL1zK9ypnWHNPe17GSgAeowu1Qna8"
+  ],
   "currentJob": "Former President of the United States of America",
   "location": "Washington, Distrito de Columbia, Estados Unidos",
   "nContacts": 161,
