@@ -111,7 +111,10 @@ def reverseImageMapping() -> dict[str, str]:
 
 
 def getnCommonContacts(
-    commonContactsContainer: element.Tag, person: str, countStrong: bool = False
+    commonContactsContainer: element.Tag,
+    person: str,
+    countStrong: bool = False,
+    commonContactsImagesContainer: element.Tag | None = None,
 ) -> int:
     """
     Extract the number of common contacts from the provided BeautifulSoup element.
@@ -120,6 +123,8 @@ def getnCommonContacts(
         - commonContactsContainer (element.Tag): A BeautifulSoup element containing the common contacts information.
         - person (str): The person's identifier in the dictionary of profiles.
         - countStrong (bool): Whether to count the number of <strong> tags as common contacts. Defaults to False.
+        - commonContactsImagesContainer (element.Tag | None): An optional element
+            containing the common contact images.
 
     Returns:
         - int: The number of common contacts.
@@ -163,9 +168,8 @@ def getnCommonContacts(
     ):
         nCommonContacts = 1
 
-    connectionsImages = [
-        image.get("src") for image in commonContactsContainer.find_all("img")
-    ]
+    imagesContainer = commonContactsImagesContainer or commonContactsContainer
+    connectionsImages = [image.get("src") for image in imagesContainer.find_all("img")]
 
     assert (
         len(connectionsImages) <= nCommonContacts
@@ -385,8 +389,16 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
 
         if commonContactsContainer:
 
+            commonContactsImagesContainer = [
+                ancestor
+                for ancestor in commonContactsContainer.parents
+                if ancestor.find("img")
+            ][0]
+
             profiles[profileID]["nCommonContacts"] = getnCommonContacts(
-                commonContactsContainer, person=profileID
+                commonContactsContainer,
+                person=profileID,
+                commonContactsImagesContainer=commonContactsImagesContainer,
             )
 
     fileUtils.saveProfiles(profiles)
