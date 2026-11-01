@@ -110,21 +110,16 @@ def reverseImageMapping() -> dict[str, str]:
     return reverseImage
 
 
-def getnCommonContacts(
-    commonContactsContainer: element.Tag,
-    person: str,
-    countStrong: bool = False,
-    commonContactsImagesContainer: element.Tag | None = None,
+def extractnCommonContacts(
+    commonContactsContainer: element.Tag, countStrong: bool = False
 ) -> int:
     """
     Extract the number of common contacts from the provided BeautifulSoup element.
 
     Args:
         - commonContactsContainer (element.Tag): A BeautifulSoup element containing the common contacts information.
-        - person (str): The person's identifier in the dictionary of profiles.
-        - countStrong (bool): Whether to count the number of <strong> tags as common contacts. Defaults to False.
-        - commonContactsImagesContainer (element.Tag | None): An optional element
-            containing the common contact images.
+        - countStrong (bool): Whether to count the number of <strong> tags as common
+            contacts. Defaults to False.
 
     Returns:
         - int: The number of common contacts.
@@ -168,6 +163,29 @@ def getnCommonContacts(
     ):
         nCommonContacts = 1
 
+    return nCommonContacts
+
+
+def getnCommonContacts(
+    commonContactsContainer: element.Tag,
+    person: str,
+    countStrong: bool = False,
+    commonContactsImagesContainer: element.Tag | None = None,
+) -> int:
+    """
+    Extract the number of common contacts from the provided BeautifulSoup element.
+
+    Args:
+        - commonContactsContainer (element.Tag): A BeautifulSoup element containing the common contacts information.
+        - person (str): The person's identifier in the dictionary of profiles.
+        - countStrong (bool): Whether to count the number of <strong> tags as common contacts. Defaults to False.
+        - commonContactsImagesContainer (element.Tag | None): An optional element
+            containing the common contact images.
+
+    Returns:
+        - int: The number of common contacts.
+    """
+    nCommonContacts = extractnCommonContacts(commonContactsContainer, countStrong)
     imagesContainer = commonContactsImagesContainer or commonContactsContainer
     connectionsImages = [image.get("src") for image in imagesContainer.find_all("img")]
 
@@ -389,11 +407,16 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
 
         if commonContactsContainer:
 
-            commonContactsImagesContainer = [
-                ancestor
-                for ancestor in commonContactsContainer.parents
-                if ancestor.find("img")
-            ][0]
+            nCommonContacts = extractnCommonContacts(commonContactsContainer)
+            commonContactsImagesContainer = next(
+                (
+                    ancestor
+                    for ancestor in commonContactsContainer.parents
+                    if len(ancestor.find_all("img")) <= nCommonContacts
+                    and ancestor.find("img")
+                ),
+                None,
+            )
 
             profiles[profileID]["nCommonContacts"] = getnCommonContacts(
                 commonContactsContainer,
