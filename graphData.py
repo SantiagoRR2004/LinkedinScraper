@@ -27,16 +27,24 @@ def adaptiveRounding(values: list[float], maxDecimals: int = 10) -> list[float]:
             rounded = round(value, decimals)
             trunc = int(rounded * (10**decimals)) / (10**decimals)
 
-            previousRounded = round(values[i - 1], decimals) if i > 0 else None
+            # Find the previous value that is different
+            j = i - 1
+            while j > 0 and values[j] == value:
+                j -= 1
+
+            previousRounded = round(values[j], decimals) if i > 0 else None
             previousTrunc = (
-                int(values[i - 1] * (10**decimals)) / (10**decimals) if i > 0 else None
+                int(values[j] * (10**decimals)) / (10**decimals) if i > 0 else None
             )
 
-            nextRounded = (
-                round(values[i + 1], decimals) if i < len(values) - 1 else None
-            )
+            # Find the next value that is different
+            j = i + 1
+            while j < len(values) - 1 and values[j] == value:
+                j += 1
+
+            nextRounded = round(values[j], decimals) if i < len(values) - 1 else None
             nextTrunc = (
-                int(values[i + 1] * (10**decimals)) / (10**decimals)
+                int(values[j] * (10**decimals)) / (10**decimals)
                 if i < len(values) - 1
                 else None
             )
