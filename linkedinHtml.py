@@ -48,7 +48,7 @@ def extractDegree(text: str) -> int | None:
         - int | None: The extracted degree as an integer, or None if not found.
     """
     match = re.search(
-        r"(?:^|[·•]\s*)(1er|2º|3er)\+?(?:\s|$)",
+        r"(?:^|[·•]\s*)(1er|2º|3er)\+?$",
         text.strip(),
         re.IGNORECASE,
     )
