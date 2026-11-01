@@ -841,12 +841,9 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
         newInfo["degree"] = degree
 
     # Total number of contacts
-    nContacts = (
-        int(contactsMatch.group(1).replace(".", "").replace(",", ""))
-        if contactsMatch
-        else 0
-    )
-    newInfo["nContacts"] = nContacts
+    if contactsMatch:
+        nContacts = int(contactsMatch.group(1).replace(".", "").replace(",", ""))
+        newInfo["nContacts"] = nContacts
 
     # The number of common contacts
     commonContactsLink = next(
@@ -866,9 +863,6 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
         newInfo["nCommonContacts"] = getnCommonContacts(
             commonContactsLink, person=person, countStrong=True
         )
-
-    else:
-        newInfo["nCommonContacts"] = 0
 
     if CREATE_NEW_TESTS and person is not None:
         file = f"{SCRAPE_MAIN_PROFILE_PATH}/{currentTime}_{person}.json"
