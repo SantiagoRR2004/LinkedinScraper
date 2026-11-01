@@ -339,6 +339,7 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
                 src=lambda src: src
                 and ("profile-displayphoto" in src or "profile-framedphoto" in src),
             )
+            if image.find_previous("p") is None
         ]
         framedProfileImages = [
             image
@@ -536,6 +537,20 @@ def extractLinkedinConnections(
                     attrs={
                         "componentkey": lambda value: value
                         and value.startswith("ConnectButtonstate:")
+                    },
+                )
+                or div.find(
+                    "button",
+                    attrs={
+                        "aria-label": lambda value: value
+                        and re.search(r"\b(?:follow|seguir)\b", value, re.IGNORECASE)
+                    },
+                )
+                or div.find(
+                    "button",
+                    attrs={
+                        "aria-label": lambda value: value
+                        and re.search(r"\b(?:accept|aceptar)\b", value, re.IGNORECASE)
                     },
                 )
             )
