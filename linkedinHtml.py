@@ -2,8 +2,13 @@ from urllib.parse import parse_qs, urlparse
 from bs4 import BeautifulSoup, element
 from collections import Counter
 import fileUtils
+import json
 import time
 import re
+
+CREATE_NEW_TESTS = True
+EXTRACT_PROFILES_PATH = "tests/extractProfiles"
+SCRAPE_MAIN_PROFILE_PATH = "tests/scrapeMainProfile"
 
 
 def extractImageUrls(images: list[element.Tag]) -> list[str]:
@@ -236,6 +241,8 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
 
     for e in elements:
 
+        newInfo = {}
+
         isInvitation = bool(
             e.get("componentkey", "").startswith("invitation_manager_row_")
             or e.find(
@@ -260,6 +267,22 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
         )
         if profileLink is None:
             continue
+
+        profileUrl = profileLink["href"]
+        newInfo["profileUrl"] = profileUrl
+
+        # Get the last segment of the profile URL
+        pathParts = urlparse(profileUrl).path.strip("/").split("/")
+        if len(pathParts) != 2 or pathParts[0] != "in":
+            continue
+        profileID = pathParts[1]
+        foundProfiles.append(profileID)
+
+        if CREATE_NEW_TESTS:
+            currentTime = int(time.time())
+            file = f"{EXTRACT_PROFILES_PATH}/{currentTime}_{profileID}.html"
+            with open(file, "w", encoding="utf-8") as f:
+                f.write(e.prettify())
 
         profileParagraphs = profileLink.find_all("p")
 
@@ -302,9 +325,11 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
                 if extractDegree(text) is None:
                     profileDetails.append(text)
 
-        currentJob = profileDetails[0]
+        newInfo["name"] = name
 
-        profileUrl = profileLink["href"]
+        currentJob = profileDetails[0]
+        newInfo["currentJob"] = currentJob
+
         profileImages = [
             image
             for link in links
@@ -323,12 +348,7 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
         imageUrls = extractImageUrls(
             framedProfileImages[:1] if framedProfileImages else profileImages[:1]
         )
-
-        # Get the last segment of the profile URL
-        pathParts = urlparse(profileUrl).path.strip("/").split("/")
-        if len(pathParts) != 2 or pathParts[0] != "in":
-            continue
-        profileID = pathParts[1]
+        newInfo["imageUrls"] = imageUrls
 
         # Find the internal identifier
         messageLink = next(
@@ -340,27 +360,8 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
             None,
         )
 
-        foundProfiles.append(profileID)
-        profiles.setdefault(profileID, {}).update(
-            {
-                "name": name,
-                "profileUrl": profileUrl,
-                "currentJob": currentJob,
-            }
-        )
-
-        # Add new images to the existing list of images
-        if profiles[profileID].get("imageUrls"):
-
-            allImages = profiles[profileID]["imageUrls"]
-            allImages += imageUrls
-            profiles[profileID]["imageUrls"] = list(set(allImages))
-
-        else:
-            profiles[profileID]["imageUrls"] = imageUrls
-
         if not isInvitation and degree is not None:
-            profiles[profileID]["degree"] = degree
+            newInfo["degree"] = degree
 
         # Find optional internal LinkedIn identifier
         if messageLink:
@@ -382,14 +383,14 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
             )
 
         if linkedinID:
-            profiles[profileID]["linkedinID"] = linkedinID
+            newInfo["linkedinID"] = linkedinID
 
         # Find the location if available
         location = (
             profileDetails[1] if not isInvitation and len(profileDetails) > 1 else ""
         )
         if location:
-            profiles[profileID]["location"] = location
+            newInfo["location"] = location
 
         commonContactsContainer = next(
             (
@@ -418,13 +419,35 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
                 None,
             )
 
-            profiles[profileID]["nCommonContacts"] = getnCommonContacts(
+            newInfo["nCommonContacts"] = getnCommonContacts(
                 commonContactsContainer,
                 person=profileID,
                 commonContactsImagesContainer=commonContactsImagesContainer,
             )
 
+        # Save if needed
+        if CREATE_NEW_TESTS:
+            file = f"{EXTRACT_PROFILES_PATH}/{currentTime}_{profileID}.json"
+            with open(file, "w", encoding="utf-8") as f:
+                json.dump({profileID: newInfo}, f, ensure_ascii=False, indent=2)
+                f.write("\n")
+
+        # Update with newInfo (imageUrls are special)
+        profiles.setdefault(profileID, {})
+
+        if profiles[profileID].get("imageUrls"):
+            allImages = profiles[profileID]["imageUrls"]
+            allImages += newInfo["imageUrls"]
+            profiles[profileID]["imageUrls"] = list(set(allImages))
+
+        else:
+            profiles[profileID]["imageUrls"] = newInfo["imageUrls"]
+
+        del newInfo["imageUrls"]
+        profiles[profileID].update(newInfo)
+
     fileUtils.saveProfiles(profiles)
+    reverseImageMapping()
 
     toret = {k: v for k, v in profiles.items() if k in foundProfiles}
 
@@ -615,6 +638,12 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
     """
     newInfo = {}
 
+    if CREATE_NEW_TESTS and person is not None:
+        currentTime = int(time.time())
+        file = f"{SCRAPE_MAIN_PROFILE_PATH}/{currentTime}_{person}.html"
+        with open(file, "w", encoding="utf-8") as f:
+            f.write(soup.prettify())
+
     profileLinks = [
         link
         for link in soup.find_all("a", href=True)
@@ -775,6 +804,12 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
     else:
         newInfo["nCommonContacts"] = 0
 
+    if CREATE_NEW_TESTS and person is not None:
+        file = f"{SCRAPE_MAIN_PROFILE_PATH}/{currentTime}_{person}.json"
+        with open(file, "w", encoding="utf-8") as f:
+            json.dump(newInfo, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+
     # The timestamp
     if fileUtils.STORE_PROFILES:
         newInfo["timestamp"] = int(time.time())
@@ -784,10 +819,20 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
 
     profiles = fileUtils.getProfiles()
 
-    if person is not None and person in profiles:
+    if person is not None:
+        profiles.setdefault(person, {})
+
+        # Keep all image URLs found so far
+        if profiles[person].get("imageUrls"):
+            allImages = profiles[person]["imageUrls"]
+            allImages += newInfo["imageUrls"]
+            profiles[person]["imageUrls"] = list(set(allImages))
+
+        else:
+            profiles[person]["imageUrls"] = newInfo["imageUrls"]
+
+        del newInfo["imageUrls"]
         profiles[person].update(newInfo)
-    elif person is not None:
-        profiles[person] = newInfo
 
     fileUtils.saveProfiles(profiles)
 

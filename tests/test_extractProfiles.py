@@ -4,6 +4,9 @@ import fileUtils
 fileUtils.STORE_PROFILES = False  # Disable storing profiles during tests
 
 import linkedinHtml
+
+linkedinHtml.CREATE_NEW_TESTS = False  # Disable creating new test files during tests
+
 import unittest
 import json
 import os

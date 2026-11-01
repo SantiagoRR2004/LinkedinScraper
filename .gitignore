@@ -8,5 +8,10 @@ connections.json
 invitations.json
 connections/
 
+# The tests
 *.html
 !tests/**/*.html
+
+# The generated tests
+tests/**/*_*.html
+tests/**/*_*.json
