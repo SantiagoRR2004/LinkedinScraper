@@ -11,6 +11,36 @@ EXTRACT_PROFILES_PATH = "tests/extractProfiles"
 SCRAPE_MAIN_PROFILE_PATH = "tests/scrapeMainProfile"
 
 
+def normalizeProfileUrl(profileUrl: str) -> str:
+    """
+    Remove a trailing language segment from a LinkedIn profile URL.
+
+    LinkedIn can render the same profile as ``/in/<profile>/<language>/``.
+    The language is presentation-specific and must not become part of the
+    stored profile URL.
+
+    Args:
+        - profileUrl (str): The LinkedIn profile URL to normalize.
+
+    Returns:
+        - str: The normalized LinkedIn profile URL.
+    """
+    parsedUrl = urlparse(profileUrl)
+    pathParts = parsedUrl.path.strip("/").split("/")
+
+    if (
+        len(pathParts) == 3
+        and pathParts[0] == "in"
+        and re.fullmatch(r"[a-z]{2}(?:-[a-z]{2})?", pathParts[2], re.IGNORECASE)
+    ):
+        normalizedPath = "/" + "/".join(pathParts[:2])
+        if parsedUrl.path.endswith("/"):
+            normalizedPath += "/"
+        return parsedUrl._replace(path=normalizedPath).geturl()
+
+    return profileUrl
+
+
 def extractImageUrls(images: list[element.Tag]) -> list[str]:
     """
     Extract unique image sources and responsive source-set entries.
@@ -268,7 +298,7 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
         if profileLink is None:
             continue
 
-        profileUrl = profileLink["href"]
+        profileUrl = normalizeProfileUrl(profileLink["href"])
         newInfo["profileUrl"] = profileUrl
 
         # Get the last segment of the profile URL
@@ -330,17 +360,31 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
         currentJob = profileDetails[0]
         newInfo["currentJob"] = currentJob
 
-        profileImages = [
-            image
-            for link in links
-            if link.get("href") == profileUrl
-            for image in link.find_all(
-                "img",
-                src=lambda src: src
-                and ("profile-displayphoto" in src or "profile-framedphoto" in src),
+        profileImages = []
+        for link in links:
+            if normalizeProfileUrl(link.get("href", "")) != profileUrl:
+                continue
+
+            profileElements = link.find_all(["img", "p"])
+            firstParagraphIndex = next(
+                (
+                    index
+                    for index, element in enumerate(profileElements)
+                    if element.name == "p"
+                ),
+                len(profileElements),
             )
-            if image.find_previous("p") is None
-        ]
+            profileImages.extend(
+                image
+                for index, image in enumerate(profileElements)
+                if index < firstParagraphIndex
+                and image.name == "img"
+                and image.get("src")
+                and (
+                    "profile-displayphoto" in image["src"]
+                    or "profile-framedphoto" in image["src"]
+                )
+            )
         framedProfileImages = [
             image
             for image in profileImages
@@ -669,7 +713,10 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
             link
             for link in profileLinks
             if person
-            and urlparse(link["href"]).path.rstrip("/").split("/")[-1] == person
+            and urlparse(normalizeProfileUrl(link["href"]))
+            .path.rstrip("/")
+            .split("/")[-1]
+            == person
         ),
         profileLinks[0] if profileLinks else None,
     )
@@ -678,15 +725,19 @@ def scrapeMainProfile(soup: BeautifulSoup, person: str = None) -> dict:
 
     # Extract the name, profile URL, and image URL
     newInfo["name"] = profileParagraphs[0].get_text(" ", strip=True)
-    newInfo["profileUrl"] = profileLink["href"]
-    profilePath = urlparse(profileLink["href"]).path.rstrip("/")
+    newInfo["profileUrl"] = normalizeProfileUrl(profileLink["href"])
+    profilePath = urlparse(newInfo["profileUrl"]).path.rstrip("/")
     topcardLink = soup.find(
         "a",
         attrs={"componentkey": "topcard-logo-image-referencekey"},
         href=True,
     )
     profileImageLinks = [profileLink]
-    if topcardLink and urlparse(topcardLink["href"]).path.rstrip("/") == profilePath:
+    if (
+        topcardLink
+        and urlparse(normalizeProfileUrl(topcardLink["href"])).path.rstrip("/")
+        == profilePath
+    ):
         profileImageLinks.append(topcardLink)
 
     newInfo["imageUrls"] = extractImageUrls(
