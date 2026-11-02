@@ -249,7 +249,8 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
         - name
         - profileUrl
         - imageUrls (can be empty)
-        - currentJob
+
+    It obtains currentJob when the profile includes a current job.
 
     It can obtain the internal LinkedIn identifier if:
         - mynetwork/invite-connect/connections/
@@ -357,8 +358,8 @@ def extractProfiles(elements: list[element.Tag]) -> dict[str, dict]:
 
         newInfo["name"] = name
 
-        currentJob = profileDetails[0]
-        newInfo["currentJob"] = currentJob
+        if profileDetails:
+            newInfo["currentJob"] = profileDetails[0]
 
         profileImages = []
         for link in links:
