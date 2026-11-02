@@ -122,12 +122,18 @@ def createHTMLList(nodes: dict[str, float], title: str, useColor: bool = False) 
         if useColor:
             color = "color: " + ("red" if node in firstConnections else "blue") + ";"
 
+            if USE_SELF and node == "me":
+                color = ""
+
         html += (
             "<tr>"
             f'<td style="padding: 0; text-align: right; {color}">{format(score, '.15g')}</td>'
             f'<td style="padding: 0;">{image}</td>'
-            f'<td style="padding: 0; text-align: left">{profile["name"]}<br>{profile["currentJob"]}'
+            f'<td style="padding: 0; text-align: left">{profile["name"]}'
         )
+
+        if profile.get("currentJob"):
+            html += f'<br>{profile["currentJob"]}'
 
         if profile.get("location"):
             html += f'<br>{profile["location"]}'
@@ -140,6 +146,7 @@ def createHTMLList(nodes: dict[str, float], title: str, useColor: bool = False) 
 
 
 if __name__ == "__main__":
+    USE_SELF = False
     currentDirectory = os.path.dirname(os.path.abspath(__file__))
     peopleDirectory = os.path.join(currentDirectory, "connections")
 
@@ -149,9 +156,22 @@ if __name__ == "__main__":
     G = nx.MultiDiGraph()
 
     G.add_nodes_from(firstConnections.keys(), type=("Linkedin", "Known"), color="red")
+
     for person, personData in profiles.items():
         if person not in firstConnections:
             G.add_node(person, type=("Linkedin", "Unknown"), color="blue")
+
+    if USE_SELF:
+        G.add_node("me", type=("Linkedin", "Known"), color="yellow")
+        for person in firstConnections.keys():
+            G.add_edge("me", person)
+
+        profiles["me"] = {
+            "name": "Me",
+            "currentJob": "Professional LinkedIn Scraper",
+            "profileUrl": "https://www.linkedin.com/in/me/",
+            "imageUrls": [],
+        }
 
     # Load the connection files
     connectionFiles = [
