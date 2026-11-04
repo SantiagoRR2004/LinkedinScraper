@@ -32,13 +32,21 @@ To create graphs of the connections, you can use the [`graphData.py`](../graphDa
 
 In [`graphData.py`](../graphData.py) there is a boolean variable called `USE_SELF` that controls whether to include your own profile in the graph or not. It will be a node that has connections to the profiles in [`connections.json`](../connections.json).
 
-### [`LinkedinGraph.html`](../LinkedinGraph.html)
+### [`LinkedinGraphKnown.html`](../LinkedinGraphKnown.html)
 
-This graph only contains the profiles that are among your connections and the connections between them. It is a smaller graph that is easier to visualize.
+This graph only contains the profiles that are among your connections and the connections between them.
 
 ### [`LinkedinGraphComplete.html`](../LinkedinGraphComplete.html)
 
-This graph contains all the profiles that have connections to your connections.
+This graph contains everything that has been scraped.
+
+### `LinkedinGraph{i}.html`
+
+This graphs contains the Unkown profiles that have `{i}` connections and the Known profiles. It only keeps the edges between the Known and Unknown.
+
+### `LinkedinGraph{i}_Known.html`
+
+This graphs contains the Unkown profiles that have `{i}` connections and the Known profiles. It keeps all the edges.
 
 ## Scores
 
@@ -47,7 +55,7 @@ The script [`graphData.py`](../graphData.py) also creates web pages with scores 
 $$
 \text{neighbourhoodExclusivity} =
 \begin{cases}
-    0 & \text{if } n_{\text{connections}} = 0 \\[8pt]
+    0 & \text{if } n_{\text{connections}} = 0 \\
     \displaystyle
     \frac{100}{n_{\text{connections}}}
     \sum_{v \in \text{connectedNodes}}
@@ -63,8 +71,8 @@ $$
 $$
 \text{knownConnectionsOfTotalPercentage} =
 \begin{cases}
-    0 & \text{if } n_{\text{connections}} \text{is \textit{None}} \\[6pt]
-    0 & \text{if } n_{\text{connections}} = 0 \\[6pt]
+    0 & \text{if } n_{\text{connections}} \text{is \textit{None}} \\
+    0 & \text{if } n_{\text{connections}} = 0 \\
     100 * \dfrac{n_{\text{known connections}}}
     {n_{\text{connections}} + n_{\text{known connections}}}
     & \text{otherwise}
@@ -75,14 +83,14 @@ Then each score is normalized so the maximum score for each is 100. The exceptio
 
 $$
 \text{score}_i =
-\dfrac{100^3}{3}
+\dfrac{100}{3}
 \left(
     \dfrac{\text{knownConnectionsPercentage}_i}{max(\text{knownConnectionsPercentage})}
     +
     \dfrac{\text{knownConnectionsOfTotalPercentage}_i}{max(\text{knownConnectionsOfTotalPercentage})}
     +
     \begin{cases}
-        \dfrac{\text{neighbourhoodExclusivity}_i}{max(\text{neighbourhoodExclusivity}_\text{Known})} & \text{if } i \in \text{Known} \\[6pt]
+        \dfrac{\text{neighbourhoodExclusivity}_i}{max(\text{neighbourhoodExclusivity}_\text{Known})} & \text{if } i \in \text{Known} \\
         \dfrac{\text{neighbourhoodExclusivity}_i}{max(\text{neighbourhoodExclusivity}_\text{Unknown})}
         & \text{if } i \in \text{Unknown}
     \end{cases}

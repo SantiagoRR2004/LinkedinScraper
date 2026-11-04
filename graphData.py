@@ -1,6 +1,7 @@
 from modules import graph
 import networkx as nx
 import fileUtils
+import copy
 import json
 import os
 
@@ -328,9 +329,52 @@ if __name__ == "__main__":
     with open(os.path.join(currentDirectory, "LinkedinGraphComplete.html"), "w") as f:
         f.write(graph.createHTML(G))
 
-    G = graph.removeUnconnectedNodes(G, "Known")
+    # Number of connections in the graph for the Unknown nodes
+    nConnectionsGraph = set(
+        G.nodes[n]["numConnections"]
+        for n in G.nodes()
+        if "Known" not in G.nodes[n]["type"]
+    )
+    nConnectionsGraph = sorted(list(nConnectionsGraph))
 
-    with open(os.path.join(currentDirectory, "LinkedinGraph.html"), "w") as f:
+    for i in nConnectionsGraph:
+
+        tempG = copy.deepcopy(G)
+
+        # Remove Unkown nodes that don't have i connections
+        tempG.remove_nodes_from(
+            [
+                node
+                for node in G.nodes()
+                if "Unknown" in G.nodes[node]["type"]
+                and G.nodes[node]["numConnections"] != i
+            ]
+        )
+
+        with open(
+            os.path.join(currentDirectory, f"LinkedinGraph{i}_Known.html"), "w"
+        ) as f:
+            f.write(graph.createHTML(tempG))
+
+        # Remove connections between Known nodes
+        tempG.remove_edges_from(
+            [
+                (u, v)
+                for u, v in tempG.edges()
+                if "Known" in tempG.nodes[u]["type"]
+                and "Known" in tempG.nodes[v]["type"]
+            ]
+        )
+
+        with open(os.path.join(currentDirectory, f"LinkedinGraph{i}.html"), "w") as f:
+            f.write(graph.createHTML(tempG))
+
+    # Remove Unknown nodes
+    G.remove_nodes_from(
+        [node for node in G.nodes() if "Unknown" in G.nodes[node]["type"]]
+    )
+
+    with open(os.path.join(currentDirectory, "LinkedinGraphKnown.html"), "w") as f:
         f.write(graph.createHTML(G))
 
     # Known profiles
