@@ -301,13 +301,18 @@ if __name__ == "__main__":
     connectionNames = {k: v["name"] for k, v in profiles.items()}
 
     if len(connectionNames.keys()) != len(set(connectionNames.values())):
-        duplicates = set(
-            name
+        duplicates = {
+            name: nTimes
             for name in connectionNames.values()
-            if list(connectionNames.values()).count(name) > 1
+            if (nTimes := list(connectionNames.values()).count(name)) > 1
+        }
+        duplicates = dict(
+            sorted(
+                duplicates.items(), key=lambda x: (-x[1], fileUtils.normalizeName(x[0]))
+            )
         )
-        for duplicate in duplicates:
-            print(duplicate)
+        for duplicate, nTimes in duplicates.items():
+            print(f"{nTimes}: {duplicate}")
 
             # Fix by adding a number to the duplicate names
             count = 1
