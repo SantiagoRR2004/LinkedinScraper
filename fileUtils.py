@@ -285,3 +285,69 @@ def saveInvitations(connections: dict[str, str]) -> None:
         - None
     """
     saveConnections(connections, invitationsFilePath())
+
+
+def addMissingProfiles() -> None:
+    """
+    If profiles.jso is corrupted or missing, this function will
+    try to add the missing profiles from the connections and invitations.
+
+    Because the other files only store the url and name, only those fields
+    will be added to the profiles.json file.
+
+    Args:
+        - None
+
+    Returns:
+        - None
+    """
+    allProfiles = getProfiles()
+
+    # Dict where all the connections and invitations will be stored
+    connectionProfiles: dict[str, str] = {}
+
+    # Start by adding the second-degree connections
+    peopleDirectory = connectionsDirectoryPath()
+    connectionFiles = [f for f in os.listdir(peopleDirectory) if f.endswith(".json")]
+
+    for person in connectionFiles:
+
+        filePath = os.path.join(peopleDirectory, person)
+
+        with open(filePath, "r", encoding="utf-8") as f:
+            personConnections: dict = json.load(f)
+
+        connectionProfiles.update(personConnections)
+
+    # Add the invitations
+    invitations = getInvitations()
+    connectionProfiles.update(invitations)
+
+    # Add the first-degree connections
+    firstConnections = getFirstConnections()
+    connectionProfiles.update(firstConnections)
+
+    for person, name in connectionProfiles.items():
+        if person not in allProfiles:
+            personData = {
+                "name": name,
+                "profileUrl": f"https://www.linkedin.com/in/{person}/",
+                "imageUrls": [],
+            }
+
+            if person in firstConnections:
+                personData["degree"] = 1
+            elif person not in invitations:
+                """
+                The only other way to have a connection is to be connected
+                to a first-degree connection, which makes it a second-degree connection.
+
+                Linkedin doesn't allow to see connections between users that are not
+                connected to you.
+                """
+                personData["degree"] = 2
+
+            allProfiles[person] = personData
+
+    # Finally, save the profiles.json file
+    saveProfiles(allProfiles)

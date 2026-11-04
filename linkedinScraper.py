@@ -152,6 +152,7 @@ def obtainDirectConnections(driver: webdriver.Chrome) -> dict[str, dict]:
     Returns:
         - dict: The direct connections
     """
+    fileUtils.addMissingProfiles()
     # Get the LinkedIn connections page
     driver.get("https://www.linkedin.com/mynetwork/invite-connect/connections/")
     scrollToBottom(driver)
