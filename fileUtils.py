@@ -58,6 +58,24 @@ def connectionsDirectoryPath() -> str:
     return connectionsDirectory
 
 
+def tqdmDirectoryPath() -> str:
+    """
+    Get the path to the tqdm directory, creating it if it doesn't exist.
+
+    It is used to store the data being iterated by the tqdm library.
+
+    Args:
+        - None
+
+    Returns:
+        - str: The path to the tqdm directory.
+    """
+    currentDirectory = os.path.dirname(os.path.abspath(__file__))
+    tqdmDirectory = os.path.join(currentDirectory, "tqdm")
+    os.makedirs(tqdmDirectory, exist_ok=True)
+    return tqdmDirectory
+
+
 def getProfiles() -> dict[str, dict]:
     """
     Get the profiles from the profiles.json file.
@@ -351,3 +369,51 @@ def addMissingProfiles() -> None:
 
     # Finally, save the profiles.json file
     saveProfiles(allProfiles)
+
+
+def saveTqdmMainProfiles(personToScrape: dict[str, list]) -> None:
+    """
+    Save the main profiles being iterated by tqdm to a JSON file.
+
+    Args:
+        - personToScrape (dict[str, list]): A dictionary containing the main profiles to save.
+
+    Returns:
+        - None
+    """
+    file = os.path.join(tqdmDirectoryPath(), "mainProfiles.json")
+    with open(file, "w", encoding="utf-8") as f:
+        json.dump(personToScrape, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+
+
+def saveTqdmInterpersonalFirst(personToScrape: dict[str, dict]) -> None:
+    """
+    Save the first-degree interpersonal profiles being iterated by tqdm to a JSON file.
+
+    Args:
+        - personToScrape (dict[str, dict]): A dictionary containing the first-degree interpersonal profiles to save.
+
+    Returns:
+        - None
+    """
+    file = os.path.join(tqdmDirectoryPath(), "interpersonalFirst.json")
+    with open(file, "w", encoding="utf-8") as f:
+        json.dump(personToScrape, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+
+
+def saveTqdmInterpersonalSecond(personToScrape: dict[str, dict]) -> None:
+    """
+    Save the second-degree interpersonal profiles being iterated by tqdm to a JSON file.
+
+    Args:
+        - personToScrape (dict[str, dict]): A dictionary containing the second-degree interpersonal profiles to save.
+
+    Returns:
+        - None
+    """
+    file = os.path.join(tqdmDirectoryPath(), "interpersonalSecond.json")
+    with open(file, "w", encoding="utf-8") as f:
+        json.dump(personToScrape, f, ensure_ascii=False, indent=2)
+        f.write("\n")

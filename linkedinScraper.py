@@ -120,9 +120,20 @@ def scrapeMainProfiles(driver: webdriver.Chrome) -> dict[str, dict]:
     # Sort by nCommonContacts in descending order
     personToScrape = sorted(
         personToScrape,
-        key=lambda person: profiles[person].get("nCommonContacts", 0),
-        reverse=True,
+        key=lambda person: (
+            person not in connections,
+            person not in invitations,
+            -profiles[person].get("nCommonContacts", 0),
+            fileUtils.normalizeName(profiles[person]["name"]),
+        ),
+        reverse=False,
     )
+
+    personToScrapeData = {
+        p: [profiles[p]["name"], profiles[p].get("nCommonContacts", 0)]
+        for p in personToScrape
+    }
+    fileUtils.saveTqdmMainProfiles(personToScrapeData)
 
     # Only scrape the profiles that need to be scraped
     for person in tqdm.tqdm(personToScrape, desc="Scraping main profiles"):
@@ -131,6 +142,7 @@ def scrapeMainProfiles(driver: webdriver.Chrome) -> dict[str, dict]:
 
         driver.get(personData["profileUrl"])
         fileUtils.waitRandomTime()
+        scrollToBottom(driver)
 
         soup = BeautifulSoup(driver.page_source, "html.parser")
 
@@ -263,6 +275,7 @@ def obtainInterpersonalFirst(driver: webdriver.Chrome) -> None:
             reverse=True,
         )
     )
+    fileUtils.saveTqdmInterpersonalFirst(validProfiles)
 
     for person, personData in tqdm.tqdm(
         validProfiles.items(), desc="First-degree connections"
@@ -346,6 +359,7 @@ def obtainInterpersonalSecond(driver: webdriver.Chrome) -> None:
             reverse=False,
         )
     )
+    fileUtils.saveTqdmInterpersonalSecond(validProfiles)
 
     for person, personData in tqdm.tqdm(
         validProfiles.items(), desc="Second-degree connections"
